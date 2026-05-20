@@ -1,0 +1,170 @@
+/* ── Design tokens ────────────────────────────────────────────── */
+:root {
+  --brand-50:  #EEF2FF;
+  --brand-100: #E0E7FF;
+  --brand-400: #818CF8;
+  --brand-500: #6366F1;
+  --brand-600: #4F46E5;
+  --brand-700: #4338CA;
+
+  --sidebar-bg-from: #1E1B4B;
+  --sidebar-bg-to:   #111827;
+  --sidebar-text:    #94A3B8;
+  --sidebar-text-active: #fff;
+  --sidebar-active-bg: rgba(99,102,241,0.18);
+  --sidebar-hover-bg:  rgba(255,255,255,0.06);
+  --sidebar-border-active: #6366F1;
+
+  --surface:     #ffffff;
+  --surface-2:   #F8FAFC;
+  --surface-3:   #F1F5F9;
+  --border:      #E2E8F0;
+
+  --text-primary:   #0F172A;
+  --text-secondary: #64748B;
+  --text-muted:     #94A3B8;
+
+  --radius-sm: 6px;
+  --radius:    8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+  --shadow:    0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.06);
+  --shadow-md: 0 4px 6px rgba(0,0,0,0.07), 0 2px 4px rgba(0,0,0,0.05);
+  --shadow-lg: 0 10px 15px rgba(0,0,0,0.1), 0 4px 6px rgba(0,0,0,0.05);
+
+  --transition: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ── Reset & base ─────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11'; /* Inter OpenType tweaks */
+  background: var(--surface-2);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Custom scrollbar (Webkit) ────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
+
+/* ── Sidebar scrollbar ────────────────────────────────────────── */
+.ant-layout-sider ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); }
+.ant-layout-sider ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.25); }
+
+/* ── Global transitions for interactive elements ──────────────── */
+.ant-btn   { transition: all var(--transition) !important; }
+.ant-card  { transition: box-shadow var(--transition) !important; }
+.ant-tag   { transition: all var(--transition) !important; }
+
+/* ── Card hover elevation ─────────────────────────────────────── */
+.ant-card[class*="hoverable"]:hover {
+  box-shadow: var(--shadow-lg) !important;
+  transform: translateY(-1px);
+}
+
+/* ── Table ────────────────────────────────────────────────────── */
+.ant-table-wrapper .ant-table {
+  background: var(--surface) !important;
+}
+/* Critical row highlight */
+.ant-table-row-danger td {
+  background: #FFF5F5 !important;
+}
+.ant-table-row-danger:hover td {
+  background: #FEE2E2 !important;
+}
+/* Muted row for deactivated users */
+.ant-table-row-disabled td {
+  opacity: 0.55;
+}
+
+/* ── Layout content area ──────────────────────────────────────── */
+.app-content {
+  margin: 24px;
+  padding: 28px;
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  min-height: calc(100vh - 64px - 48px);
+  box-shadow: var(--shadow-sm);
+}
+
+/* ── Page titles — tighter weight ─────────────────────────────── */
+.ant-typography h1, .ant-typography h2, .ant-typography h3 {
+  font-weight: 700 !important;
+  letter-spacing: -0.02em;
+}
+
+/* ── Statistic values ─────────────────────────────────────────── */
+.ant-statistic-content-value {
+  font-weight: 700 !important;
+  letter-spacing: -0.03em;
+}
+
+/* ── Primary button glow ──────────────────────────────────────── */
+.ant-btn-primary {
+  box-shadow: 0 4px 14px rgba(99,102,241,0.35) !important;
+}
+.ant-btn-primary:hover {
+  box-shadow: 0 6px 20px rgba(99,102,241,0.45) !important;
+  transform: translateY(-1px);
+}
+.ant-btn-primary:active {
+  transform: translateY(0);
+}
+
+/* ── Input focus ring ─────────────────────────────────────────── */
+.ant-input:focus, .ant-input-focused,
+.ant-select-focused .ant-select-selector,
+.ant-picker-focused {
+  border-color: var(--brand-500) !important;
+  box-shadow: 0 0 0 3px rgba(99,102,241,0.12) !important;
+}
+
+/* ── Tag tweaks ───────────────────────────────────────────────── */
+.ant-tag { font-weight: 500; }
+
+/* ── Notification ─────────────────────────────────────────────── */
+.ant-notification-notice {
+  border-radius: var(--radius-lg) !important;
+  box-shadow: var(--shadow-lg) !important;
+}
+
+/* ── Drawer for mobile sidebar ────────────────────────────────── */
+.mobile-sidebar-drawer .ant-drawer-body {
+  padding: 0;
+  background: linear-gradient(180deg, var(--sidebar-bg-from), var(--sidebar-bg-to));
+}
+.mobile-sidebar-drawer .ant-drawer-header {
+  background: var(--sidebar-bg-from);
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.mobile-sidebar-drawer .ant-drawer-title { color: #fff; font-weight: 700; }
+.mobile-sidebar-drawer .ant-drawer-close { color: rgba(255,255,255,0.6); }
+
+/* ── Responsive helpers ───────────────────────────────────────── */
+@media (max-width: 768px) {
+  .app-content {
+    margin: 12px;
+    padding: 16px;
+    border-radius: var(--radius);
+    min-height: calc(100vh - 56px - 24px);
+  }
+  .hide-mobile { display: none !important; }
+}
+@media (min-width: 769px) {
+  .hide-desktop { display: none !important; }
+
+  /* Login page: show brand panel and constrain form width */
+  #login-brand-panel { display: flex !important; }
+}
