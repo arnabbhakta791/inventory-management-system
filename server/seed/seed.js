@@ -308,11 +308,43 @@ async function seed() {
           reference: 'Sales (seeded)',
           notes: 'Aggregated sales movements',
           performedBy: techStaff._id,
-          createdAt: daysAgo(rand(1, 29)),
+          createdAt: daysAgo(rand(0, 6)),  // within 7-day graph window
         });
       }
     }
   }
+
+  // ── Add daily restock movements across last 7 days (Stock In line) ────────
+  // Pick a rotating set of SKUs so each day looks like a real delivery
+  const techRestockSchedule = [
+    { sku: 'IP15-128-BK', productIdx: 2, qty: 20 },
+    { sku: 'IP15-128-WH', productIdx: 2, qty: 15 },
+    { sku: 'SGS24-256-BK',productIdx: 8, qty: 25 },
+    { sku: 'APP2-WHITE',  productIdx: 5, qty: 30 },
+    { sku: 'LMXM3-BK',   productIdx: 11,qty: 40 },
+    { sku: 'SWH5-BK',    productIdx: 13,qty: 18 },
+    { sku: 'MKEY-US',    productIdx: 7, qty: 22 },
+    { sku: 'USBC-2M',    productIdx: 14,qty: 50 },
+  ];
+  for (let day = 6; day >= 0; day--) {
+    // 2-3 restocks per day, rotating through the schedule
+    const dayItems = techRestockSchedule.filter((_, i) => i % 7 === (6 - day) % 7 || i % 7 === (7 - day) % 7);
+    for (const item of dayItems) {
+      techMovements.push({
+        tenantId: tech._id,
+        productId: techProducts[item.productIdx]._id,
+        variantSku: item.sku,
+        type: 'purchase',
+        quantity: item.qty,
+        previousStock: 0, newStock: item.qty,  // approximate for graph purposes
+        reference: 'Weekly Restock',
+        notes: 'Routine supplier delivery',
+        performedBy: techManager._id,
+        createdAt: daysAgo(day),
+      });
+    }
+  }
+
   await StockMovement.insertMany(techMovements);
   console.log(`📊  TechStore: ${techMovements.length} stock movements created`);
 
@@ -706,11 +738,40 @@ async function seed() {
           tenantId: fashion._id, productId: prod._id, variantSku: v.sku,
           type: 'sale', quantity: -soldQty, previousStock: initQty, newStock: v.stock,
           reference: 'Sales (seeded)', notes: 'Aggregated sales movements',
-          performedBy: fashStaff._id, createdAt: daysAgo(rand(1, 29)),
+          performedBy: fashStaff._id, createdAt: daysAgo(rand(0, 6)),  // within 7-day window
         });
       }
     }
   }
+
+  // ── FashionHub daily restock movements (last 7 days) ─────────────────────
+  const fashRestockSchedule = [
+    { sku: 'CCNT-M-BK', productIdx: 0, qty: 60 },
+    { sku: 'CCNT-M-WH', productIdx: 0, qty: 50 },
+    { sku: 'PSJ-30-BL', productIdx: 1, qty: 30 },
+    { sku: 'WLS-UK8',   productIdx: 3, qty: 20 },
+    { sku: 'YL-M-BK',   productIdx: 5, qty: 40 },
+    { sku: 'BC-BK',     productIdx: 6, qty: 55 },
+    { sku: 'RT-UK8-WH', productIdx: 7, qty: 24 },
+  ];
+  for (let day = 6; day >= 0; day--) {
+    const dayItems = fashRestockSchedule.filter((_, i) => i % 7 === (6 - day) % 7 || i % 7 === (5 - day + 7) % 7);
+    for (const item of dayItems) {
+      fashMovements.push({
+        tenantId: fashion._id,
+        productId: fashProducts[item.productIdx]._id,
+        variantSku: item.sku,
+        type: 'purchase',
+        quantity: item.qty,
+        previousStock: 0, newStock: item.qty,
+        reference: 'Weekly Restock',
+        notes: 'Routine supplier delivery',
+        performedBy: fashManager._id,
+        createdAt: daysAgo(day),
+      });
+    }
+  }
+
   await StockMovement.insertMany(fashMovements);
   console.log(`📊  FashionHub: ${fashMovements.length} stock movements created`);
 
