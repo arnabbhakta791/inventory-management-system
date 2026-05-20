@@ -1,3 +1,194 @@
-import React from 'react'; import { Typography } from 'antd';
-const ProductList = () => <Typography.Title>Products</Typography.Title>;
+import React, { useEffect, useState, useCallback } from 'react';
+import {
+  Table, Button, Space, Tag, Input, Select, Typography,
+  Popconfirm, message, Badge, Tooltip, Card, Row, Col, Statistic,
+} from 'antd';
+import {
+  PlusOutlined, SearchOutlined, EditOutlined,
+  DeleteOutlined, WarningOutlined, ReloadOutlined,
+} from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
+import api from '../../api/axios';
+
+const { Title } = Typography;
+const { Option } = Select;
+
+const ProductList = () => {
+  const navigate = useNavigate();
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [categories, setCategories] = useState([]);
+  const [lowStockCount, setLowStockCount] = useState(0);
+  const [filters, setFilters] = useState({ search: '', category: '', isActive: 'true' });
+  const [pagination, setPagination] = useState({ current: 1, pageSize: 20, total: 0 });
+
+  const fetchProducts = useCallback(async (page = 1) => {
+    try {
+      setLoading(true);
+      const params = { page, limit: pagination.pageSize, ...filters };
+      if (!params.search) delete params.search;
+      if (!params.category) delete params.category;
+      const { data } = await api.get('/products', { params });
+      setProducts(data.data);
+      setPagination((p) => ({ ...p, current: page, total: data.pagination.total }));
+    } catch {
+      message.error('Failed to load products');
+    } finally {
+      setLoading(false);
+    }
+  }, [filters, pagination.pageSize]);
+
+  const fetchMeta = useCallback(async () => {
+    try {
+      const [catRes, lowStockRes] = await Promise.all([
+        api.get('/products/categories'),
+        api.get('/products/low-stock'),
+      ]);
+      setCategories(catRes.data.data);
+      setLowStockCount(lowStockRes.data.count);
+    } catch { /* silent */ }
+  }, []);
+
+  useEffect(() => { fetchProducts(1); }, [filters]);
+  useEffect(() => { fetchMeta(); }, []);
+
+  const handleDelete = async (id) => {
+    try {
+      await api.delete(`/products/${id}`);
+      message.success('Product deactivated');
+      fetchProducts(pagination.current);
+    } catch {
+      message.error('Failed to delete product');
+    }
+  };
+
+  const columns = [
+    {
+      title: 'Product',
+      dataIndex: 'name',
+      key: 'name',
+      render: (name, record) => (
+        <Space direction="vertical" size={0}>
+          <span style={{ fontWeight: 600 }}>{name}</span>
+          <span style={{ fontSize: 12, color: '#888' }}>{record.brand}</span>
+        </Space>
+      ),
+    },
+    { title: 'Category', dataIndex: 'category', key: 'category', render: (c) => <Tag color="blue">{c}</Tag> },
+    {
+      title: 'Variants',
+      key: 'variants',
+      render: (_, record) => (
+        <Space wrap>
+          {record.variants.slice(0, 3).map((v) => {
+            const isLow = v.stock < v.lowStockThreshold;
+            return (
+              <Tooltip key={v.sku} title={`Stock: ${v.stock} | Threshold: ${v.lowStockThreshold}`}>
+                <Tag color={isLow ? 'red' : 'default'} icon={isLow ? <WarningOutlined /> : null}>
+                  {v.sku}: {v.stock}
+                </Tag>
+              </Tooltip>
+            );
+          })}
+          {record.variants.length > 3 && <Tag>+{record.variants.length - 3} more</Tag>}
+        </Space>
+      ),
+    },
+    {
+      title: 'Total Stock',
+      key: 'totalStock',
+      render: (_, record) => {
+        const total = record.variants.reduce((s, v) => s + v.stock, 0);
+        const hasLow = record.variants.some((v) => v.stock < v.lowStockThreshold);
+        return <Badge count={hasLow ? '!' : 0} size="small" offset={[4, 0]}><span style={{ color: hasLow ? '#ff4d4f' : 'inherit', fontWeight: 600 }}>{total}</span></Badge>;
+      },
+    },
+    {
+      title: 'Supplier',
+      key: 'supplier',
+      render: (_, record) => record.supplierId?.name || <span style={{ color: '#ccc' }}>—</span>,
+    },
+    { title: 'Status', dataIndex: 'isActive', key: 'isActive', render: (v) => <Tag color={v ? 'green' : 'red'}>{v ? 'Active' : 'Inactive'}</Tag> },
+    {
+      title: 'Actions',
+      key: 'actions',
+      render: (_, record) => (
+        <Space>
+          <Button size="small" icon={<EditOutlined />} onClick={() => navigate(`/products/${record._id}/edit`)}>Edit</Button>
+          <Popconfirm title="Deactivate this product?" onConfirm={() => handleDelete(record._id)} okText="Yes" cancelText="No">
+            <Button size="small" danger icon={<DeleteOutlined />}>Delete</Button>
+          </Popconfirm>
+        </Space>
+      ),
+    },
+  ];
+
+  return (
+    <Space direction="vertical" size="large" style={{ width: '100%' }}>
+      <Row justify="space-between" align="middle">
+        <Col><Title level={3} style={{ margin: 0 }}>Products</Title></Col>
+        <Col>
+          <Space>
+            {lowStockCount > 0 && <Tag color="red" icon={<WarningOutlined />}>{lowStockCount} Low Stock</Tag>}
+            <Button icon={<ReloadOutlined />} onClick={() => fetchProducts(1)}>Refresh</Button>
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/products/new')}>Add Product</Button>
+          </Space>
+        </Col>
+      </Row>
+
+      <Card size="small">
+        <Row gutter={12}>
+          <Col flex="auto">
+            <Input
+              prefix={<SearchOutlined />}
+              placeholder="Search products..."
+              value={filters.search}
+              onChange={(e) => setFilters((f) => ({ ...f, search: e.target.value }))}
+              allowClear
+            />
+          </Col>
+          <Col>
+            <Select
+              placeholder="Category"
+              allowClear
+              style={{ width: 160 }}
+              value={filters.category || undefined}
+              onChange={(v) => setFilters((f) => ({ ...f, category: v || '' }))}
+            >
+              {categories.map((c) => <Option key={c} value={c}>{c}</Option>)}
+            </Select>
+          </Col>
+          <Col>
+            <Select
+              value={filters.isActive}
+              style={{ width: 120 }}
+              onChange={(v) => setFilters((f) => ({ ...f, isActive: v }))}
+            >
+              <Option value="true">Active</Option>
+              <Option value="false">Inactive</Option>
+              <Option value="all">All</Option>
+            </Select>
+          </Col>
+        </Row>
+      </Card>
+
+      <Table
+        columns={columns}
+        dataSource={products}
+        rowKey="_id"
+        loading={loading}
+        pagination={{
+          current: pagination.current,
+          pageSize: pagination.pageSize,
+          total: pagination.total,
+          showSizeChanger: true,
+          showTotal: (t) => `${t} products`,
+          onChange: (page, size) => { setPagination((p) => ({ ...p, pageSize: size })); fetchProducts(page); },
+        }}
+        scroll={{ x: 900 }}
+      />
+    </Space>
+  );
+};
+
 export default ProductList;
