@@ -1,13 +1,13 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   Table, Button, Space, Tag, Input, Select, Typography,
-  Popconfirm, message, Badge, Tooltip, Card, Row, Col, Statistic,
+  Popconfirm, message, Badge, Tooltip, Card, Row, Col, Alert,
 } from 'antd';
 import {
   PlusOutlined, SearchOutlined, EditOutlined,
-  DeleteOutlined, WarningOutlined, ReloadOutlined,
+  DeleteOutlined, WarningOutlined, ReloadOutlined, ShopOutlined,
 } from '@ant-design/icons';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../../api/axios';
 
 const { Title } = Typography;
@@ -15,19 +15,29 @@ const { Option } = Select;
 
 const ProductList = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Pre-fill supplier filter from URL (e.g. navigated from Suppliers page)
+  const urlSupplierId   = searchParams.get('supplierId')   || '';
+  const urlSupplierName = searchParams.get('supplierName') || '';
+
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [categories, setCategories] = useState([]);
   const [lowStockCount, setLowStockCount] = useState(0);
-  const [filters, setFilters] = useState({ search: '', category: '', isActive: 'true' });
+  const [filters, setFilters] = useState({
+    search: '', category: '', isActive: 'true',
+    supplierId: urlSupplierId,
+  });
   const [pagination, setPagination] = useState({ current: 1, pageSize: 20, total: 0 });
 
   const fetchProducts = useCallback(async (page = 1) => {
     try {
       setLoading(true);
       const params = { page, limit: pagination.pageSize, ...filters };
-      if (!params.search) delete params.search;
-      if (!params.category) delete params.category;
+      if (!params.search)     delete params.search;
+      if (!params.category)   delete params.category;
+      if (!params.supplierId) delete params.supplierId;
       const { data } = await api.get('/products', { params });
       setProducts(data.data);
       setPagination((p) => ({ ...p, current: page, total: data.pagination.total }));
@@ -123,8 +133,34 @@ const ProductList = () => {
     },
   ];
 
+  const clearSupplierFilter = () => {
+    setFilters((f) => ({ ...f, supplierId: '' }));
+    setSearchParams({});
+  };
+
   return (
     <Space direction="vertical" size="large" style={{ width: '100%' }}>
+      {/* Supplier filter banner */}
+      {filters.supplierId && (
+        <Alert
+          type="info"
+          showIcon
+          icon={<ShopOutlined />}
+          message={
+            <span>
+              Showing products linked to supplier{' '}
+              <strong>{urlSupplierName || filters.supplierId}</strong>
+            </span>
+          }
+          action={
+            <Button size="small" onClick={clearSupplierFilter}>
+              Clear filter
+            </Button>
+          }
+          style={{ borderRadius: 8 }}
+        />
+      )}
+
       <Row justify="space-between" align="middle">
         <Col><Title level={3} style={{ margin: 0 }}>Products</Title></Col>
         <Col>

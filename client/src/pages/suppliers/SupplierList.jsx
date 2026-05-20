@@ -100,9 +100,18 @@ const SupplierList = () => {
       title: 'Products',
       key: 'products',
       align: 'center',
-      render: (_, record) => (
-        <Tag color="blue">{record.products?.length || 0} linked</Tag>
-      ),
+      render: (_, record) => {
+        const count = record.products?.length || 0;
+        return (
+          <Tag
+            color="blue"
+            style={{ cursor: count > 0 ? 'pointer' : 'default' }}
+            onClick={() => count > 0 && navigate(`/products?supplierId=${record._id}&supplierName=${encodeURIComponent(record.name)}`)}
+          >
+            {count} linked
+          </Tag>
+        );
+      },
     },
     {
       title: 'Status',
