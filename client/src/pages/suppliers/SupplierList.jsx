@@ -101,7 +101,7 @@ const SupplierList = () => {
       key: 'products',
       align: 'center',
       render: (_, record) => {
-        const count = record.products?.length || 0;
+        const count = record.productCount || 0;
         return (
           <Tag
             color="blue"

@@ -1,5 +1,6 @@
 const { validationResult } = require('express-validator');
 const Supplier = require('../models/Supplier');
+const Product  = require('../models/Product');
 
 // @desc    Get all suppliers (paginated)
 // @route   GET /api/suppliers
@@ -14,18 +15,37 @@ const getSuppliers = async (req, res, next) => {
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
-    const [suppliers, total] = await Promise.all([
+    const [suppliers, total, productCounts] = await Promise.all([
       Supplier.find(query)
         .sort({ name: 1 })
         .skip(skip)
         .limit(parseInt(limit))
         .lean(),
       Supplier.countDocuments(query),
+      // Count active products per supplier from the Product collection
+      // (products reference supplierId; supplier.products[] is a pricing catalog
+      //  that may not be populated — this is the authoritative count)
+      Product.aggregate([
+        { $match: { tenantId: req.tenantId, isActive: true, supplierId: { $ne: null } } },
+        { $group: { _id: '$supplierId', count: { $sum: 1 } } },
+      ]),
     ]);
+
+    // Build a map: supplierId string → product count
+    const countMap = {};
+    for (const row of productCounts) {
+      countMap[row._id.toString()] = row.count;
+    }
+
+    // Attach productCount to each supplier
+    const suppliersWithCount = suppliers.map((s) => ({
+      ...s,
+      productCount: countMap[s._id.toString()] || 0,
+    }));
 
     res.json({
       success: true,
-      data: suppliers,
+      data: suppliersWithCount,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
