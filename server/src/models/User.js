@@ -16,11 +16,10 @@ const userSchema = new mongoose.Schema(
 // Compound unique index: email must be unique per tenant
 userSchema.index({ tenantId: 1, email: 1 }, { unique: true });
 
-// Hash password before saving
-userSchema.pre('save', async function (next) {
-  if (!this.isModified('password')) return next();
+// Hash password before saving (async — no next() needed in Mongoose 9)
+userSchema.pre('save', async function () {
+  if (!this.isModified('password')) return;
   this.password = await bcrypt.hash(this.password, 12);
-  next();
 });
 
 // Compare password helper
