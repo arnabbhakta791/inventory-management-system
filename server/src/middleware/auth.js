@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken');
+const mongoose = require('mongoose');
 const User = require('../models/User');
 
 // Verify JWT and attach user info to request
@@ -16,9 +17,11 @@ const protect = async (req, res, next) => {
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    // Attach IDs — every middleware and controller can use req.tenantId
-    req.userId = decoded.userId;
-    req.tenantId = decoded.tenantId;
+    // Cast to ObjectId so both Model.find() and Model.aggregate() $match
+    // queries work correctly — JWT serialises ObjectIds as plain strings,
+    // and aggregate() pipelines do NOT auto-cast strings to ObjectId.
+    req.userId   = new mongoose.Types.ObjectId(decoded.userId);
+    req.tenantId = new mongoose.Types.ObjectId(decoded.tenantId);
     req.userRole = decoded.role;
 
     next();
