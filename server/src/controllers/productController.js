@@ -1,53 +1,6 @@
 const { validationResult } = require('express-validator');
 const Product = require('../models/Product');
-const PurchaseOrder = require('../models/PurchaseOrder');
-
-// Helper: build low-stock query result with PO awareness
-const getLowStockItems = async (tenantId) => {
-  const products = await Product.find({ tenantId, isActive: true }).lean();
-
-  // Fetch all pending/confirmed POs for this tenant to calculate incoming stock
-  const pendingPOs = await PurchaseOrder.find({
-    tenantId,
-    status: { $in: ['sent', 'confirmed'] },
-  }).lean();
-
-  // Build a map: variantSku -> pending quantity from POs
-  const pendingQtyMap = {};
-  for (const po of pendingPOs) {
-    for (const item of po.items) {
-      const remaining = item.quantity - (item.receivedQuantity || 0);
-      if (remaining > 0) {
-        pendingQtyMap[item.variantSku] = (pendingQtyMap[item.variantSku] || 0) + remaining;
-      }
-    }
-  }
-
-  const alerts = [];
-  for (const product of products) {
-    for (const variant of product.variants) {
-      if (variant.stock < variant.lowStockThreshold) {
-        const pendingQty = pendingQtyMap[variant.sku] || 0;
-        const effectiveStock = variant.stock + pendingQty;
-        // Only alert if effective stock (current + pending PO) is still below threshold
-        if (effectiveStock < variant.lowStockThreshold) {
-          alerts.push({
-            productId: product._id,
-            productName: product.name,
-            category: product.category,
-            sku: variant.sku,
-            attributes: variant.attributes,
-            currentStock: variant.stock,
-            pendingPOQty: pendingQty,
-            effectiveStock,
-            threshold: variant.lowStockThreshold,
-          });
-        }
-      }
-    }
-  }
-  return alerts;
-};
+const { getSmartLowStockAlerts } = require('../services/alertService');
 
 // @desc    Get all products (paginated, filtered)
 // @route   GET /api/products
@@ -170,7 +123,7 @@ const deleteProduct = async (req, res, next) => {
 // @access  Private
 const getLowStock = async (req, res, next) => {
   try {
-    const alerts = await getLowStockItems(req.tenantId);
+    const alerts = await getSmartLowStockAlerts(req.tenantId);
     res.json({ success: true, data: alerts, count: alerts.length });
   } catch (error) {
     next(error);
@@ -255,5 +208,4 @@ module.exports = {
   getLowStock,
   getCategories,
   adjustVariantStock,
-  getLowStockItems,
 };

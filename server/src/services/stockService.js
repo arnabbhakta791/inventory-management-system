@@ -2,6 +2,8 @@ const mongoose = require('mongoose');
 const Product = require('../models/Product');
 const StockMovement = require('../models/StockMovement');
 const { emitToTenant } = require('../socket');
+// Lazy-require alertService to avoid circular dependency at module load time
+const getAlertService = () => require('./alertService');
 
 /**
  * Custom error thrown when a variant has insufficient stock.
@@ -156,13 +158,10 @@ const deductStock = async (tenantId, items, opts = {}) => {
         newStock: m.newStock,
       });
 
-      if (m.newStock < 5) { // TODO: use per-variant threshold
-        emitToTenant(tenantId.toString(), 'stock:low', {
-          productId: m.productId,
-          sku: m.variantSku,
-          stock: m.newStock,
-        });
-      }
+      // Smart alert: check PO coverage before emitting — non-blocking
+      getAlertService()
+        .notifyLowStockIfNeeded(tenantId, m.productId, m.variantSku, m.newStock, 10)
+        .catch(() => {}); // never crash the main flow
     }
 
     return movements;
