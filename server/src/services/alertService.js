@@ -76,9 +76,7 @@ const getSmartLowStockAlerts = async (tenantId) => {
         category:       product.category,
         supplier:       product.supplierId?.name || null,
         sku:            variant.sku,
-        attributes:     variant.attributes
-          ? Object.fromEntries(variant.attributes)
-          : {},
+        attributes:     variant.attributes || {},
         currentStock:   variant.stock,
         pendingPOQty:   pendingQty,
         effectiveStock,

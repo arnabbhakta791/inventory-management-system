@@ -117,7 +117,7 @@ const getTopSellers = async (req, res, next) => {
           as:           'product',
         },
       },
-      { $unwind: { path: '$product', preserveNullAndEmpty: true } },
+      { $unwind: { path: '$product', preserveNullAndEmptyArrays: true } },
       {
         $project: {
           sku:         '$_id',
