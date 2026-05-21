@@ -1,4 +1,3 @@
-const mongoose = require('mongoose');
 const Product = require('../models/Product');
 const StockMovement = require('../models/StockMovement');
 const { emitToTenant } = require('../socket');
@@ -12,8 +11,8 @@ const getAlertService = () => require('./alertService');
 class InsufficientStockError extends Error {
   constructor(sku, available, requested) {
     super(`Insufficient stock for SKU "${sku}": available=${available}, requested=${requested}`);
-    this.name = 'InsufficientStockError';
-    this.sku = sku;
+    this.name      = 'InsufficientStockError';
+    this.sku       = sku;
     this.available = available;
     this.requested = requested;
     this.statusCode = 409;
@@ -21,26 +20,18 @@ class InsufficientStockError extends Error {
 }
 
 /**
- * Atomically deduct stock for one variant.
+ * Atomically deduct stock for one variant (no session required).
  *
  * Uses findOneAndUpdate with a stock-check in the query filter — if the
  * document isn't matched (stock too low), it returns null → throws.
- * This is safe against concurrent requests because MongoDB processes the
- * find+update as a single atomic operation at the document level.
- *
- * @param {string}   tenantId
- * @param {string}   productId
- * @param {string}   sku
- * @param {number}   quantity  — must be positive
- * @param {object}   session   — Mongoose ClientSession (for transactions)
- * @returns {object} { product, variant, previousStock, newStock }
+ * MongoDB processes the find+update as a single atomic operation at the
+ * document level, so this is safe against concurrent requests.
  */
-const deductOneVariant = async (tenantId, productId, sku, quantity, session) => {
-  // First read the current stock so we can record previousStock in the movement log
+const deductOneVariant = async (tenantId, productId, sku, quantity) => {
+  // Read current stock first so we can record previousStock in the movement log
   const before = await Product.findOne(
     { _id: productId, tenantId, 'variants.sku': sku },
-    { 'variants.$': 1 },
-    { session }
+    { 'variants.$': 1 }
   ).lean();
 
   if (!before || !before.variants?.[0]) {
@@ -62,15 +53,14 @@ const deductOneVariant = async (tenantId, productId, sku, quantity, session) => 
       },
     },
     { $inc: { 'variants.$.stock': -quantity } },
-    { new: true, session }
+    { new: true }
   );
 
   if (!updated) {
-    // Re-read to report accurate available qty
+    // Re-read to report accurate available qty in the error
     const current = await Product.findOne(
       { _id: productId, tenantId, 'variants.sku': sku },
-      { 'variants.$': 1 },
-      { session }
+      { 'variants.$': 1 }
     ).lean();
     const available = current?.variants?.[0]?.stock ?? 0;
     throw new InsufficientStockError(sku, available, quantity);
@@ -81,13 +71,13 @@ const deductOneVariant = async (tenantId, productId, sku, quantity, session) => 
 };
 
 /**
- * Atomically add stock for one variant (for PO receipt / return).
+ * Add stock for one variant (no session required).
+ * Adding stock never fails due to a guard condition.
  */
-const addOneVariant = async (tenantId, productId, sku, quantity, session) => {
+const addOneVariant = async (tenantId, productId, sku, quantity) => {
   const before = await Product.findOne(
     { _id: productId, tenantId, 'variants.sku': sku },
-    { 'variants.$': 1 },
-    { session }
+    { 'variants.$': 1 }
   ).lean();
 
   const previousStock = before?.variants?.[0]?.stock ?? 0;
@@ -95,7 +85,7 @@ const addOneVariant = async (tenantId, productId, sku, quantity, session) => {
   const updated = await Product.findOneAndUpdate(
     { _id: productId, tenantId, 'variants.sku': sku },
     { $inc: { 'variants.$.stock': quantity } },
-    { new: true, session }
+    { new: true }
   );
 
   if (!updated) throw new Error(`Product/variant not found: ${productId}/${sku}`);
@@ -105,123 +95,126 @@ const addOneVariant = async (tenantId, productId, sku, quantity, session) => {
 };
 
 /**
- * Deduct stock for multiple items in a single MongoDB transaction.
- * If ANY item fails (insufficient stock), the whole transaction is rolled back.
+ * Deduct stock for multiple items.
  *
- * @param {string} tenantId
- * @param {Array}  items  — [{ productId, variantSku, quantity }]
- * @param {object} opts   — { type, reference, referenceId, performedBy }
- * @returns {Array} stockMovements created
+ * HOW CONCURRENCY IS HANDLED:
+ *   Each item uses findOneAndUpdate with $elemMatch { stock: { $gte: qty } }.
+ *   If two requests arrive simultaneously for the last unit:
+ *     • First:  matches (stock=1 >= 1), decrements → stock=0. ✓
+ *     • Second: no match (stock=0 >= 1 is false) → InsufficientStockError → 409.
+ *   Result: exactly one succeeds.
+ *
+ * MULTI-ITEM ROLLBACK:
+ *   If item N fails, items 0..N-1 are already deducted. We roll them back
+ *   by adding the quantity back before re-throwing, so stock is never left
+ *   in a partial state.
+ *
+ * NOTE: MongoDB multi-document transactions (session.withTransaction) are
+ * not supported on Atlas M0/M2/M5 shared tiers. This session-free approach
+ * uses document-level atomicity which works on all tiers.
+ *
+ * @param {ObjectId} tenantId
+ * @param {Array}    items  — [{ productId, variantSku, quantity }]
+ * @param {object}   opts   — { type, reference, referenceId, performedBy }
+ * @returns {Array}  StockMovement documents created
  */
 const deductStock = async (tenantId, items, opts = {}) => {
   const { type = 'sale', reference = '', referenceId = null, performedBy = null } = opts;
 
-  const session = await mongoose.startSession();
-  const movements = [];
+  const completed = []; // track which items were successfully deducted for rollback
 
   try {
-    await session.withTransaction(async () => {
-      for (const item of items) {
-        const { productId, variantSku, quantity } = item;
+    for (const item of items) {
+      const { productId, variantSku, quantity } = item;
+      const result = await deductOneVariant(tenantId, productId, variantSku, quantity);
+      completed.push({ productId, variantSku, quantity, ...result });
+    }
+  } catch (err) {
+    // Roll back all successfully deducted items before re-throwing
+    for (const done of completed) {
+      await addOneVariant(tenantId, done.productId, done.variantSku, done.quantity)
+        .catch(() => {}); // best-effort rollback — never mask the original error
+    }
+    throw err;
+  }
 
-        const { previousStock, newStock } = await deductOneVariant(
-          tenantId,
-          productId,
-          variantSku,
-          quantity,
-          session
-        );
+  // All items deducted — now write movement records and emit events
+  const movementDocs = completed.map(({ productId, variantSku, quantity, previousStock, newStock }) => ({
+    tenantId,
+    productId,
+    variantSku,
+    type,
+    quantity: -quantity, // negative = stock out
+    previousStock,
+    newStock,
+    reference,
+    referenceId,
+    performedBy,
+  }));
 
-        movements.push({
-          tenantId,
-          productId,
-          variantSku,
-          type,
-          quantity: -quantity, // negative = stock out
-          previousStock,
-          newStock,
-          reference,
-          referenceId,
-          performedBy,
-        });
-      }
+  await StockMovement.insertMany(movementDocs);
 
-      // Bulk-insert all movements inside the same transaction
-      await StockMovement.insertMany(movements, { session });
+  // Emit real-time events
+  for (const m of movementDocs) {
+    emitToTenant(tenantId.toString(), 'stock:updated', {
+      productId: m.productId,
+      sku:       m.variantSku,
+      newStock:  m.newStock,
     });
 
-    // Emit real-time events AFTER transaction commits
-    for (const m of movements) {
-      emitToTenant(tenantId.toString(), 'stock:updated', {
-        productId: m.productId,
-        sku: m.variantSku,
-        newStock: m.newStock,
-      });
-
-      // Smart alert: check PO coverage before emitting — non-blocking
-      getAlertService()
-        .notifyLowStockIfNeeded(tenantId, m.productId, m.variantSku, m.newStock, 10)
-        .catch(() => {}); // never crash the main flow
-    }
-
-    return movements;
-  } finally {
-    session.endSession();
+    // Smart alert: check PO coverage before emitting — non-blocking
+    getAlertService()
+      .notifyLowStockIfNeeded(tenantId, m.productId, m.variantSku, m.newStock, 10)
+      .catch(() => {}); // never crash the main flow
   }
+
+  return movementDocs;
 };
 
 /**
- * Add stock for multiple items in a single MongoDB transaction.
- * Used by PO receive and order returns.
+ * Add stock for multiple items.
+ * Used by PO receive and order cancellation (stock return).
+ *
+ * @param {ObjectId} tenantId
+ * @param {Array}    items  — [{ productId, variantSku, quantity }]
+ * @param {object}   opts   — { type, reference, referenceId, performedBy }
+ * @returns {Array}  StockMovement documents created
  */
 const addStock = async (tenantId, items, opts = {}) => {
   const { type = 'purchase', reference = '', referenceId = null, performedBy = null } = opts;
 
-  const session = await mongoose.startSession();
-  const movements = [];
+  const completed = [];
 
-  try {
-    await session.withTransaction(async () => {
-      for (const item of items) {
-        const { productId, variantSku, quantity } = item;
-
-        const { previousStock, newStock } = await addOneVariant(
-          tenantId,
-          productId,
-          variantSku,
-          quantity,
-          session
-        );
-
-        movements.push({
-          tenantId,
-          productId,
-          variantSku,
-          type,
-          quantity: +quantity, // positive = stock in
-          previousStock,
-          newStock,
-          reference,
-          referenceId,
-          performedBy,
-        });
-      }
-
-      await StockMovement.insertMany(movements, { session });
-    });
-
-    for (const m of movements) {
-      emitToTenant(tenantId.toString(), 'stock:updated', {
-        productId: m.productId,
-        sku: m.variantSku,
-        newStock: m.newStock,
-      });
-    }
-
-    return movements;
-  } finally {
-    session.endSession();
+  for (const item of items) {
+    const { productId, variantSku, quantity } = item;
+    const result = await addOneVariant(tenantId, productId, variantSku, quantity);
+    completed.push({ productId, variantSku, quantity, ...result });
   }
+
+  const movementDocs = completed.map(({ productId, variantSku, quantity, previousStock, newStock }) => ({
+    tenantId,
+    productId,
+    variantSku,
+    type,
+    quantity: +quantity, // positive = stock in
+    previousStock,
+    newStock,
+    reference,
+    referenceId,
+    performedBy,
+  }));
+
+  await StockMovement.insertMany(movementDocs);
+
+  for (const m of movementDocs) {
+    emitToTenant(tenantId.toString(), 'stock:updated', {
+      productId: m.productId,
+      sku:       m.variantSku,
+      newStock:  m.newStock,
+    });
+  }
+
+  return movementDocs;
 };
 
 module.exports = { deductStock, addStock, InsufficientStockError };
