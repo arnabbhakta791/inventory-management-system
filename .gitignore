@@ -11,3 +11,7 @@ node_modules/
 
 # ── client/.env is not caught by client/.gitignore (which only has *.local) ──
 client/.env
+
+# ── Claude Code project files (not for version control) ──
+CLAUDE.md
+.mcp.json
