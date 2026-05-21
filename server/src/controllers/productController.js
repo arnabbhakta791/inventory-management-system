@@ -145,18 +145,37 @@ const restoreProduct = async (req, res, next) => {
 //              the product-list header badge to match what the table shows)
 const getLowStock = async (req, res, next) => {
   try {
-    const [alerts, rawCount] = await Promise.all([
+    const [alerts, rawResult] = await Promise.all([
       getSmartLowStockAlerts(req.tenantId),
       // Count products that have at least one variant where stock < lowStockThreshold.
-      // $expr lets us compare two fields within the same document.
-      Product.countDocuments({
-        tenantId: req.tenantId,
-        isActive: true,
-        variants: {
-          $elemMatch: { $expr: { $lt: ['$stock', '$lowStockThreshold'] } },
+      // $expr inside $elemMatch resolves field paths against the ROOT document, not the
+      // array element — so it cannot compare variant.stock vs variant.lowStockThreshold.
+      // Use an aggregation with $filter + $size instead: $$v references the element.
+      Product.aggregate([
+        { $match: { tenantId: req.tenantId, isActive: true } },
+        {
+          $match: {
+            $expr: {
+              $gt: [
+                {
+                  $size: {
+                    $filter: {
+                      input: '$variants',
+                      as:    'v',
+                      cond:  { $lt: ['$$v.stock', '$$v.lowStockThreshold'] },
+                    },
+                  },
+                },
+                0,
+              ],
+            },
+          },
         },
-      }),
+        { $count: 'total' },
+      ]),
     ]);
+
+    const rawCount = rawResult[0]?.total ?? 0;
     res.json({ success: true, data: alerts, count: alerts.length, rawCount });
   } catch (error) {
     next(error);
