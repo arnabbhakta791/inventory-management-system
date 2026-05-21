@@ -22,11 +22,12 @@ A full-stack MERN SaaS application that allows multiple independent businesses (
 - **Concurrency-safe stock** — atomic `findOneAndUpdate` with MongoDB `$elemMatch` guard; no race conditions
 - **Smart low-stock alerts** — only alerts when pending POs won't cover the deficit (no false alarms)
 - **Purchase Order workflow** — draft → sent → confirmed → (partially) received, with per-item receipt tracking
-- **Sales Order workflow** — atomic stock deduction on creation; stock released on cancellation
+- **Sales Order workflow** — atomic stock deduction on creation; partial fulfillment tracking; stock released on cancellation
 - **Audit trail** — append-only `StockMovement` log for every stock change
 - **Real-time notifications** — Socket.io pushes `stock:low` events to all users in the tenant room
 - **Dashboard analytics** — inventory value, 7-day movement chart, top-5 sellers, low-stock widget
 - **RBAC** — owner / manager / staff role hierarchy
+- **API documentation** — full OpenAPI 3.0 spec served via Swagger UI at `/api/docs`
 
 ---
 
@@ -90,6 +91,28 @@ Open **http://localhost:5173**
 
 ---
 
+## API Documentation
+
+Interactive Swagger UI is available once the server is running:
+
+```
+http://localhost:5000/api/docs
+```
+
+### How to authenticate in Swagger UI
+
+1. Open `http://localhost:5000/api/docs`
+2. Use **`POST /api/auth/login`** → click **Try it out** → enter a seed credential → **Execute**
+3. Copy the `token` value from the response body
+4. Click the **Authorize 🔒** button at the top of the page
+5. Paste the token and click **Authorize** — all subsequent requests will include it automatically
+
+> The token persists across page refreshes (`persistAuthorization: true`).
+
+The spec covers all **34 endpoints** with full request/response schemas, role requirements, query parameters, and error response shapes (including the `409` insufficient-stock response with `sku`, `available`, and `requested` fields).
+
+---
+
 ## Test Credentials
 
 ### TechStore (Electronics)
@@ -114,6 +137,8 @@ Open **http://localhost:5173**
 
 ## API Endpoints
 
+> Full interactive documentation with request/response schemas: **`http://localhost:5000/api/docs`**
+
 | Method | Route | Role | Description |
 |--------|-------|------|-------------|
 | POST | `/api/auth/register` | public | Create tenant + owner |
@@ -122,20 +147,29 @@ Open **http://localhost:5173**
 | GET/POST | `/api/users` | owner/manager | List / invite users |
 | PATCH/DELETE | `/api/users/:id` | owner | Change role / deactivate |
 | GET/POST | `/api/products` | any / manager | List / create products |
-| PUT/DELETE | `/api/products/:id` | manager | Update / soft-delete |
+| GET/PUT/DELETE | `/api/products/:id` | any / manager | Get / update / soft-delete |
+| PATCH | `/api/products/:id/restore` | manager | Restore a deactivated product |
+| GET | `/api/products/low-stock` | any | Smart PO-aware alert list (`rawCount` + smart `count`) |
+| GET | `/api/products/categories` | any | Distinct category list |
 | PATCH | `/api/products/:id/variants/:sku/stock` | manager | Manual stock adjustment |
-| CRUD | `/api/suppliers` | manager | Supplier management |
+| GET/POST | `/api/suppliers` | any / manager | List / create suppliers |
+| GET/PUT/DELETE | `/api/suppliers/:id` | any / manager | Get / update / delete supplier |
 | GET/POST | `/api/purchase-orders` | any / manager | List / create POs |
-| PATCH | `/api/purchase-orders/:id/status` | manager | Status transition |
-| POST | `/api/purchase-orders/:id/receive` | manager | Receive goods (partial ok) |
-| GET/POST | `/api/orders` | any | List / create orders (atomic stock) |
+| GET/PUT/DELETE | `/api/purchase-orders/:id` | any / manager | Get / update / cancel PO |
+| PATCH | `/api/purchase-orders/:id/status` | manager | Status transition (draft→sent→confirmed) |
+| POST | `/api/purchase-orders/:id/receive` | manager | Receive goods — partial delivery supported |
+| GET/POST | `/api/orders` | any | List / create orders (atomic stock deduction) |
+| GET | `/api/orders/:id` | any | Get single order |
 | PATCH | `/api/orders/:id/status` | manager | Update order status |
-| POST | `/api/orders/:id/cancel` | manager | Cancel + release stock |
-| GET | `/api/stock-movements` | any | Paginated audit log |
-| GET | `/api/dashboard/stats` | any | KPI summary |
-| GET | `/api/dashboard/low-stock` | any | Smart alert list |
-| GET | `/api/dashboard/top-sellers` | any | Top 5 last 30 days |
-| GET | `/api/dashboard/stock-graph` | any | Daily movements last 7 days |
+| POST | `/api/orders/:id/cancel` | manager | Cancel + release unfulfilled stock |
+| POST | `/api/orders/:id/fulfill` | manager | Record fulfillment batch (partial delivery supported) |
+| GET | `/api/stock-movements` | any | Paginated append-only audit log |
+| GET | `/api/stock-movements/product/:id/variant/:sku` | any | Variant-level movement history |
+| GET | `/api/dashboard/stats` | any | KPI summary (inventory value, revenue, counts) |
+| GET | `/api/dashboard/low-stock` | any | Smart low-stock alert list |
+| GET | `/api/dashboard/top-sellers` | any | Top 5 selling variants — last 30 days |
+| GET | `/api/dashboard/stock-graph` | any | Daily stock in/out — last 7 days |
+| GET | `/api/health` | public | Server health check |
 
 ---
 
@@ -157,26 +191,29 @@ Confirms MongoDB atomic `$elemMatch` stock guard works correctly.
 ```
 mern-assignment/
 ├── server/
-│   ├── app.js
-│   ├── server.js
-│   ├── seed/seed.js
+│   ├── app.js                    — Express setup, Swagger UI mount, routes
+│   ├── server.js                 — HTTP + Socket.io bootstrap
+│   ├── seed/seed.js              — Idempotent 2-tenant seed
 │   ├── scripts/testConcurrency.js
 │   └── src/
-│       ├── config/db.js
-│       ├── middleware/      auth, rbac, errorHandler
-│       ├── models/          Tenant, User, Product, StockMovement,
-│       │                    Supplier, PurchaseOrder, Order
-│       ├── controllers/     one per resource
-│       ├── services/        stockService, alertService
+│       ├── config/
+│       │   ├── db.js             — Mongoose connection
+│       │   └── swagger.js        — OpenAPI 3.0 spec (34 endpoints)
+│       ├── middleware/           auth, rbac, errorHandler
+│       ├── models/               Tenant, User, Product, StockMovement,
+│       │                         Supplier, PurchaseOrder, Order
+│       ├── controllers/          one per resource
+│       ├── services/             stockService, alertService
 │       └── socket/index.js
 ├── client/
 │   └── src/
 │       ├── api/axios.js
-│       ├── context/         AuthContext, SocketContext
-│       ├── hooks/           useAuth, useSocket
-│       ├── components/      Layout, StockAlertListener, PrivateRoute
-│       └── pages/           Dashboard, Products, Suppliers,
-│                            PurchaseOrders, Orders, Inventory, Users
+│       ├── context/              AuthContext, SocketContext
+│       ├── hooks/                useAuth, useSocket, useRole
+│       ├── components/           Layout, StockAlertListener,
+│       │                         PrivateRoute, RoleRoute
+│       └── pages/                Dashboard, Products, Suppliers,
+│                                 PurchaseOrders, Orders, Inventory, Users
 ├── ARCHITECTURE.md
 └── README.md
 ```
