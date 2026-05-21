@@ -24,7 +24,8 @@ const ProductList = () => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [categories, setCategories] = useState([]);
-  const [lowStockCount, setLowStockCount] = useState(0);
+  const [lowStockCount, setLowStockCount] = useState(0);   // raw: variants below threshold
+  const [poSafeCount,   setPoSafeCount]   = useState(0);   // smart: already covered by pending PO
   const [filters, setFilters] = useState({
     search: '', category: '', isActive: 'true',
     supplierId: urlSupplierId,
@@ -55,10 +56,10 @@ const ProductList = () => {
         api.get('/products/low-stock'),
       ]);
       setCategories(catRes.data.data);
-      // Use rawCount (products with any variant below threshold) so the badge
-      // matches the red-tagged rows in the table, which also use the raw check.
-      // The smart PO-aware count lives on the dashboard widget instead.
-      setLowStockCount(lowStockRes.data.rawCount ?? lowStockRes.data.count);
+      const raw   = lowStockRes.data.rawCount ?? lowStockRes.data.count;
+      const smart = lowStockRes.data.count;
+      setLowStockCount(raw);
+      setPoSafeCount(raw - smart); // how many of the raw alerts are already covered by a PO
     } catch { /* silent */ }
   }, []);
 
@@ -168,7 +169,24 @@ const ProductList = () => {
         <Col><Title level={3} style={{ margin: 0 }}>Products</Title></Col>
         <Col>
           <Space>
-            {lowStockCount > 0 && <Tag color="red" icon={<WarningOutlined />}>{lowStockCount} Low Stock</Tag>}
+            {lowStockCount > 0 && (
+              <Tooltip
+                title={
+                  poSafeCount > 0
+                    ? `${poSafeCount} of these ${lowStockCount} item${lowStockCount > 1 ? 's are' : ' is'} already covered by a pending Purchase Order — no action needed for those.`
+                    : 'All low-stock items need restocking'
+                }
+              >
+                <Tag color="red" icon={<WarningOutlined />}>
+                  {lowStockCount} Low Stock
+                  {poSafeCount > 0 && (
+                    <span style={{ marginLeft: 5, opacity: 0.85, fontSize: 11 }}>
+                      · {poSafeCount} covered by PO
+                    </span>
+                  )}
+                </Tag>
+              </Tooltip>
+            )}
             <Button icon={<ReloadOutlined />} onClick={() => fetchProducts(1)}>Refresh</Button>
             <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/products/new')}>Add Product</Button>
           </Space>

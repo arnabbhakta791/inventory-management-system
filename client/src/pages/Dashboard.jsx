@@ -267,21 +267,30 @@ const Dashboard = () => {
           />
         </Col>
         <Col xs={12} sm={12} lg={6}>
-          <StatCard
-            title="Low Stock Alerts"
-            value={stats?.lowStockCount ?? 0}
-            color={stats?.lowStockCount > 0 ? COLORS.warning : COLORS.success}
-            icon={<WarningOutlined />}
-            loading={loading}
-            onClick={stats?.lowStockCount > 0 ? () => navigate('/products?lowStock=true') : null}
-            extra={
-              stats?.criticalCount > 0 && (
-                <Tag color="red" style={{ marginTop: 4 }}>
-                  <FireOutlined /> {stats.criticalCount} critical
-                </Tag>
-              )
-            }
-          />
+          <Tooltip title="Only items that still need restocking — variants already covered by a pending Purchase Order are excluded.">
+            <div>
+              <StatCard
+                title="Low Stock Alerts"
+                value={stats?.lowStockCount ?? 0}
+                color={stats?.lowStockCount > 0 ? COLORS.warning : COLORS.success}
+                icon={<WarningOutlined />}
+                loading={loading}
+                onClick={stats?.lowStockCount > 0 ? () => navigate('/products?lowStock=true') : null}
+                extra={
+                  <Space direction="vertical" size={2} style={{ marginTop: 4 }}>
+                    {stats?.criticalCount > 0 && (
+                      <Tag color="red">
+                        <FireOutlined /> {stats.criticalCount} critical
+                      </Tag>
+                    )}
+                    <Text type="secondary" style={{ fontSize: 11 }}>
+                      PO-covered items excluded
+                    </Text>
+                  </Space>
+                }
+              />
+            </div>
+          </Tooltip>
         </Col>
         <Col xs={12} sm={12} lg={6}>
           <StatCard
