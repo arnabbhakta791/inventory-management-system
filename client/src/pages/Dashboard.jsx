@@ -16,6 +16,7 @@ import dayjs from 'dayjs';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/axios';
 import { useAuth } from '../hooks/useAuth';
+import { useSocket } from '../hooks/useSocket';
 
 const { Title, Text } = Typography;
 
@@ -66,19 +67,23 @@ const ChartTooltip = ({ active, payload, label }) => {
 
 // ─────────────────────────────────────────────────────────────────
 const Dashboard = () => {
-  const { tenant } = useAuth();
-  const navigate   = useNavigate();
+  const { tenant }          = useAuth();
+  const navigate            = useNavigate();
+  const { socket, connected } = useSocket();
 
-  const [stats,       setStats]       = useState(null);
-  const [lowStock,    setLowStock]    = useState([]);
-  const [topSellers,  setTopSellers]  = useState([]);
-  const [stockGraph,  setStockGraph]  = useState([]);
-  const [loading,     setLoading]     = useState(true);
-  const [lastRefresh, setLastRefresh] = useState(null);
+  const [stats,        setStats]        = useState(null);
+  const [lowStock,     setLowStock]     = useState([]);
+  const [topSellers,   setTopSellers]   = useState([]);
+  const [stockGraph,   setStockGraph]   = useState([]);
+  const [loading,      setLoading]      = useState(true);
+  const [lastRefresh,  setLastRefresh]  = useState(null);
+  const [liveRefresh,  setLiveRefresh]  = useState(false); // true while auto-refreshing
 
-  const fetchAll = useCallback(async () => {
+  const fetchAll = useCallback(async ({ silent = false } = {}) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
+      else         setLiveRefresh(true);
+
       const [statsRes, lowRes, sellRes, graphRes] = await Promise.all([
         api.get('/dashboard/stats'),
         api.get('/dashboard/low-stock', { params: { limit: 8 } }),
@@ -94,10 +99,21 @@ const Dashboard = () => {
       // silent — individual cards will show empty state
     } finally {
       setLoading(false);
+      setLiveRefresh(false);
     }
   }, []);
 
+  // Initial load
   useEffect(() => { fetchAll(); }, [fetchAll]);
+
+  // Auto-refresh whenever any stock changes (socket:updated fired by server
+  // after every order, PO receive, or manual adjustment)
+  useEffect(() => {
+    if (!socket || !connected) return;
+    const handler = () => fetchAll({ silent: true });
+    socket.on('stock:updated', handler);
+    return () => socket.off('stock:updated', handler);
+  }, [socket, connected, fetchAll]);
 
   // ── Low-stock columns ──────────────────────────────────────────
   const lowStockColumns = [
@@ -213,13 +229,21 @@ const Dashboard = () => {
             {tenant && <Text type="secondary" style={{ fontSize: 14, fontWeight: 400, marginLeft: 10 }}>— {tenant.name}</Text>}
           </Title>
           {lastRefresh && (
-            <Text type="secondary" style={{ fontSize: 12 }}>
-              Last updated: {dayjs(lastRefresh).format('HH:mm:ss')}
-            </Text>
+            <Space size={6}>
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                Last updated: {dayjs(lastRefresh).format('HH:mm:ss')}
+              </Text>
+              {liveRefresh && (
+                <Badge status="processing" text={<Text type="secondary" style={{ fontSize: 12 }}>Live update…</Text>} />
+              )}
+              {!liveRefresh && connected && (
+                <Badge status="success" text={<Text type="secondary" style={{ fontSize: 12 }}>Live</Text>} />
+              )}
+            </Space>
           )}
         </Col>
         <Col>
-          <Button icon={<ReloadOutlined />} onClick={fetchAll} loading={loading}>
+          <Button icon={<ReloadOutlined />} onClick={() => fetchAll()} loading={loading}>
             Refresh
           </Button>
         </Col>
