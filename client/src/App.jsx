@@ -6,9 +6,8 @@ import AppLayout from './components/Layout/AppLayout';
 import PrivateRoute from './components/PrivateRoute';
 import RoleRoute from './components/RoleRoute';
 
-// Auth pages
-import Login from './pages/auth/Login';
-import Register from './pages/auth/Register';
+// Auth pages (single component handles both login + register with animation)
+import AuthPage from './pages/auth/AuthPage';
 
 // App pages (lazy loaded)
 const Dashboard = React.lazy(() => import('./pages/Dashboard'));
@@ -40,8 +39,8 @@ function App() {
     <React.Suspense fallback={<div style={{ display:'flex', justifyContent:'center', alignItems:'center', height:'100vh' }}><Spin size="large" /></div>}>
       <Routes>
         {/* Public routes */}
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
+        <Route path="/login"    element={<AuthPage />} />
+        <Route path="/register" element={<AuthPage />} />
 
         {/* Protected routes */}
         <Route element={<PrivateRoute><AppLayout /></PrivateRoute>}>

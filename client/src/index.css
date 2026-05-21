@@ -166,6 +166,5 @@ html, body {
   .hide-desktop { display: none !important; }
 
   /* Auth pages: show brand panel on desktop */
-  #login-brand-panel,
-  #register-brand-panel { display: flex !important; }
+  #auth-brand-panel { display: flex !important; }
 }
