@@ -1,7 +1,7 @@
 const express = require('express');
 const { body } = require('express-validator');
 const {
-  getOrders, getOrder, createOrder, updateOrderStatus, cancelOrder,
+  getOrders, getOrder, createOrder, updateOrderStatus, cancelOrder, fulfillOrder,
 } = require('../controllers/orderController');
 const { protect } = require('../middleware/auth');
 const { managerOrAbove } = require('../middleware/rbac');
@@ -24,7 +24,8 @@ router.route('/')
 router.route('/:id')
   .get(getOrder);
 
-router.patch('/:id/status', managerOrAbove, updateOrderStatus);
-router.post('/:id/cancel',  managerOrAbove, cancelOrder);
+router.patch('/:id/status',  managerOrAbove, updateOrderStatus);
+router.post('/:id/cancel',   managerOrAbove, cancelOrder);
+router.post('/:id/fulfill',  managerOrAbove, fulfillOrder);
 
 module.exports = router;

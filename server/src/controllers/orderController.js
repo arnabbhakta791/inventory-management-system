@@ -14,6 +14,9 @@ const ALLOWED_TRANSITIONS = {
   partially_fulfilled:  ['cancelled'],
 };
 
+// Statuses from which items can be fulfilled
+const FULFILLABLE_STATUSES = ['pending', 'confirmed', 'shipped', 'partially_fulfilled'];
+
 // Generate order number: ORD-{SLUG}-{YYMMDD}-{RAND}
 const generateOrderNumber = async (tenantId) => {
   const tenant = await Tenant.findById(tenantId).select('slug').lean();
@@ -233,4 +236,88 @@ const cancelOrder = async (req, res, next) => {
   return updateOrderStatus(req, res, next);
 };
 
-module.exports = { getOrders, getOrder, createOrder, updateOrderStatus, cancelOrder };
+// ─────────────────────────────────────────────────────────────────────────────
+// @desc    Record fulfillment for order items (supports partial delivery)
+// @route   POST /api/orders/:id/fulfill
+// @access  Private — manager/owner
+//
+// Body: { items: [{ variantSku, quantity }] }
+//   quantity = units being fulfilled in THIS batch (not cumulative)
+//
+// Auto-transitions:
+//   All items fully fulfilled  → delivered
+//   Some items still remaining → partially_fulfilled
+//
+// Stock is NOT changed here — it was already atomically deducted at order
+// creation. Fulfillment only tracks physical dispatch to the customer.
+// If the order is later cancelled, only unfulfilled qty is released back.
+// ─────────────────────────────────────────────────────────────────────────────
+const fulfillOrder = async (req, res, next) => {
+  try {
+    const { items } = req.body;
+
+    if (!Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ success: false, message: '`items` array is required' });
+    }
+
+    const order = await Order.findOne({ _id: req.params.id, tenantId: req.tenantId });
+    if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+
+    if (!FULFILLABLE_STATUSES.includes(order.status)) {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot fulfill an order with status "${order.status}"`,
+      });
+    }
+
+    // Validate and apply each fulfillment batch quantity
+    for (const { variantSku, quantity } of items) {
+      if (!variantSku) {
+        return res.status(400).json({ success: false, message: 'Each item must have a variantSku' });
+      }
+      if (!Number.isInteger(quantity) || quantity < 1) {
+        return res.status(400).json({
+          success: false,
+          message: `Quantity for "${variantSku}" must be a positive integer`,
+        });
+      }
+
+      const orderItem = order.items.find((i) => i.variantSku === variantSku);
+      if (!orderItem) {
+        return res.status(400).json({
+          success: false,
+          message: `SKU "${variantSku}" not found in this order`,
+        });
+      }
+
+      const remaining = orderItem.quantity - (orderItem.fulfilledQuantity || 0);
+      if (quantity > remaining) {
+        return res.status(400).json({
+          success: false,
+          message: `Cannot fulfill ${quantity} units of "${variantSku}" — only ${remaining} unit${remaining !== 1 ? 's' : ''} remain unfulfilled`,
+        });
+      }
+
+      orderItem.fulfilledQuantity = (orderItem.fulfilledQuantity || 0) + quantity;
+    }
+
+    // Auto-transition based on fulfillment state
+    const allFulfilled = order.items.every((i) => i.fulfilledQuantity >= i.quantity);
+    const newStatus    = allFulfilled ? 'delivered' : 'partially_fulfilled';
+
+    if (newStatus !== order.status) {
+      order.status = newStatus;
+      if (newStatus === 'delivered') order.deliveredAt = new Date();
+      order.statusHistory.push({ status: newStatus, changedBy: req.userId });
+    }
+
+    order.updatedBy = req.userId;
+    await order.save();
+
+    res.json({ success: true, data: order });
+  } catch (err) {
+    next(err);
+  }
+};
+
+module.exports = { getOrders, getOrder, createOrder, updateOrderStatus, cancelOrder, fulfillOrder };
