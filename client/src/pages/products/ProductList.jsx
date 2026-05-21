@@ -62,12 +62,14 @@ const ProductList = () => {
       ]);
       setCategories(catRes.data.data);
       const raw    = lowStockRes.data.rawCount ?? lowStockRes.data.count;
-      const smart  = lowStockRes.data.count;
+      const alerts = lowStockRes.data.data || [];
+      // Count unique products that still need action (alerts are per-variant, not per-product)
+      const smartProductCount = new Set(alerts.map((a) => String(a.productId))).size;
       setLowStockCount(raw);
-      setPoSafeCount(raw - smart);
+      setPoSafeCount(raw - smartProductCount);
       // Build lookup map from smart alerts (variants that still need action)
       const map = {};
-      (lowStockRes.data.data || []).forEach((a) => {
+      alerts.forEach((a) => {
         map[`${a.productId}::${a.sku}`] = a;
       });
       setAlertMap(map);
