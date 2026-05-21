@@ -4,6 +4,27 @@ A full-stack MERN SaaS application that allows multiple independent businesses (
 
 ---
 
+## Live Demo
+
+| | Link |
+|-|------|
+| **Frontend** | [https://inventory-management-system-one-delta.vercel.app](https://inventory-management-system-one-delta.vercel.app) |
+| **API Docs** | [https://inventory-api-gf22.onrender.com/api/docs](https://inventory-api-gf22.onrender.com/api/docs) |
+
+> **Note:** The backend is hosted on Render's free tier and spins down after 15 minutes of inactivity. The first request after idle may take ~30 seconds to wake up.
+
+---
+
+## Deployment
+
+| Layer | Platform | Notes |
+|-------|----------|-------|
+| Frontend | [Vercel](https://vercel.com) | Auto-deploys from `client/` on every push to `master` |
+| Backend | [Render](https://render.com) | Auto-deploys from `server/` on every push to `master` |
+| Database | [MongoDB Atlas M0](https://mongodb.com/cloud/atlas) | Free shared cluster |
+
+---
+
 ## Tech Stack
 
 | Layer    | Technology                                      |
@@ -93,15 +114,14 @@ Open **http://localhost:5173**
 
 ## API Documentation
 
-Interactive Swagger UI is available once the server is running:
-
-```
-http://localhost:5000/api/docs
-```
+| Environment | URL |
+|-------------|-----|
+| **Production** | [https://inventory-api-gf22.onrender.com/api/docs](https://inventory-api-gf22.onrender.com/api/docs) |
+| **Local** | http://localhost:5000/api/docs |
 
 ### How to authenticate in Swagger UI
 
-1. Open `http://localhost:5000/api/docs`
+1. Open the Swagger UI URL above
 2. Use **`POST /api/auth/login`** → click **Try it out** → enter a seed credential → **Execute**
 3. Copy the `token` value from the response body
 4. Click the **Authorize 🔒** button at the top of the page
@@ -137,7 +157,7 @@ The spec covers all **34 endpoints** with full request/response schemas, role re
 
 ## API Endpoints
 
-> Full interactive documentation with request/response schemas: **`http://localhost:5000/api/docs`**
+> Full interactive documentation with request/response schemas: **[https://inventory-api-gf22.onrender.com/api/docs](https://inventory-api-gf22.onrender.com/api/docs)**
 
 | Method | Route | Role | Description |
 |--------|-------|------|-------------|
