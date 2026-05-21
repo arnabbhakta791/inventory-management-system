@@ -184,38 +184,4 @@ Sets stock to 1 unit, fires 10 simultaneous POST `/api/orders` requests.
 **Expected:** exactly 1 success (HTTP 201) + 9 conflicts (HTTP 409).  
 Confirms MongoDB atomic `$elemMatch` stock guard works correctly.
 
----
-
-## Project Structure
-
-```
-mern-assignment/
-├── server/
-│   ├── app.js                    — Express setup, Swagger UI mount, routes
-│   ├── server.js                 — HTTP + Socket.io bootstrap
-│   ├── seed/seed.js              — Idempotent 2-tenant seed
-│   ├── scripts/testConcurrency.js
-│   └── src/
-│       ├── config/
-│       │   ├── db.js             — Mongoose connection
-│       │   └── swagger.js        — OpenAPI 3.0 spec (34 endpoints)
-│       ├── middleware/           auth, rbac, errorHandler
-│       ├── models/               Tenant, User, Product, StockMovement,
-│       │                         Supplier, PurchaseOrder, Order
-│       ├── controllers/          one per resource
-│       ├── services/             stockService, alertService
-│       └── socket/index.js
-├── client/
-│   └── src/
-│       ├── api/axios.js
-│       ├── context/              AuthContext, SocketContext
-│       ├── hooks/                useAuth, useSocket, useRole
-│       ├── components/           Layout, StockAlertListener,
-│       │                         PrivateRoute, RoleRoute
-│       └── pages/                Dashboard, Products, Suppliers,
-│                                 PurchaseOrders, Orders, Inventory, Users
-├── ARCHITECTURE.md
-└── README.md
-```
-
 See **[ARCHITECTURE.md](./ARCHITECTURE.md)** for detailed design decisions and trade-offs.
