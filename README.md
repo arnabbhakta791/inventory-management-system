@@ -177,6 +177,58 @@ All updates flow through **Socket.io** — the server emits `stock:updated` afte
 
 ---
 
+## Testing Concurrency (Atomic Stock Deduction)
+
+The system protects against overselling using an atomic `findOneAndUpdate` with a `$gte` stock guard. To prove it works:
+
+### Prerequisites
+- Server must be running locally (`cd server && npm run dev`)
+- Seed data must be loaded (`npm run seed`)
+
+### Run the test
+
+```bash
+cd server
+npm run test:concurrency
+```
+
+### What it does
+
+1. Logs in as the TechStore owner to get a JWT
+2. Picks a product variant and **sets its stock to exactly 1 unit**
+3. Fires **10 simultaneous** `POST /api/orders` requests, each requesting qty = 1
+4. Collects all responses and checks the database
+
+### Expected output
+
+```
+═══ Concurrency Test: Atomic Stock Deduction ═══
+
+✓ Connected to MongoDB
+✓ Logged in as: TechStore Owner (TechStore)
+✓ Set stock for SKU "IPHONE-15-128GB-BLACK" → 1 unit
+
+→ Firing 10 simultaneous orders for qty=1 of "IPHONE-15-128GB-BLACK"...
+
+─── Results ───────────────────────────────────────
+  Total requests  : 10
+  Time elapsed    : ~50ms
+  ✓ Successes (201): 1   ← exactly one order wins
+  ✗ Conflicts (409): 9   ← the rest get "Insufficient stock"
+
+─── DB Verification ────────────────────────────────
+  Final stock: 0  (never negative — no overselling)
+
+─── Verdict ────────────────────────────────────────
+  ✓ TEST PASSED — Concurrency protection works correctly!
+```
+
+The key proof: **exactly 1 success, 9 rejections, and stock is 0 (not negative)**. No matter how many concurrent requests hit the server, MongoDB's atomic update ensures only one can claim the last unit.
+
+> The script exits with code `0` on pass and `1` on fail, so it can be used in CI pipelines.
+
+---
+
 ## Deployment
 
 | Layer | Platform | Live URL |
