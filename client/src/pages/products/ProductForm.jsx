@@ -72,7 +72,7 @@ const ProductForm = () => {
         av[attr] = [...new Set(p.variants.map((v) => v.attributes?.[attr]).filter(Boolean))];
       });
       setAttrValues(av);
-      setVariants(p.variants.map((v) => ({ ...v, attributes: Object.fromEntries(v.attributes || []) })));
+      setVariants(p.variants.map((v) => ({ ...v, attributes: v.attributes || {} })));
     } catch {
       message.error('Failed to load product');
     }
