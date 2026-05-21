@@ -142,9 +142,18 @@ const getTopSellers = async (req, res, next) => {
 // ─────────────────────────────────────────────────────────────────
 const getStockGraph = async (req, res, next) => {
   try {
-    const since = new Date();
-    since.setDate(since.getDate() - 6); // last 7 days inclusive
-    since.setHours(0, 0, 0, 0);
+    // Build the 7-day window entirely in UTC so the result is the same
+    // regardless of the timezone of the machine running Node.
+    // setHours(0,0,0,0) uses LOCAL time — on IST (UTC+5:30) that is
+    // 18:30 UTC the *previous* day, which shifts every key one day early
+    // and drops today's movements from the chart.
+    const now = new Date();
+    const since = new Date(Date.UTC(
+      now.getUTCFullYear(),
+      now.getUTCMonth(),
+      now.getUTCDate() - 6,   // 6 days ago at 00:00 UTC → 7 days inclusive
+      0, 0, 0, 0
+    ));
 
     const movements = await StockMovement.aggregate([
       {
@@ -156,8 +165,9 @@ const getStockGraph = async (req, res, next) => {
       {
         $group: {
           _id: {
+            // timezone: 'UTC' makes the date string independent of mongod's TZ
             date: {
-              $dateToString: { format: '%Y-%m-%d', date: '$createdAt' },
+              $dateToString: { format: '%Y-%m-%d', date: '$createdAt', timezone: 'UTC' },
             },
             direction: {
               $cond: [{ $gt: ['$quantity', 0] }, 'in', 'out'],
@@ -169,12 +179,16 @@ const getStockGraph = async (req, res, next) => {
       { $sort: { '_id.date': 1 } },
     ]);
 
-    // Pivot into { date, in, out } rows for easy chart rendering
+    // Build a dayMap with exactly 7 UTC date keys: 6 days ago → today
     const dayMap = {};
     for (let i = 0; i < 7; i++) {
-      const d = new Date(since);
-      d.setDate(d.getDate() + i);
-      const key = d.toISOString().slice(0, 10);
+      const d = new Date(Date.UTC(
+        now.getUTCFullYear(),
+        now.getUTCMonth(),
+        now.getUTCDate() - 6 + i,
+        0, 0, 0, 0
+      ));
+      const key = d.toISOString().slice(0, 10); // 'YYYY-MM-DD' in UTC
       dayMap[key] = { date: key, in: 0, out: 0 };
     }
 
