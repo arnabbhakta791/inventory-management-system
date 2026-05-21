@@ -35,7 +35,7 @@ const StatCard = ({ title, value, prefix, suffix, color, icon, loading, onClick,
   <Card
     hoverable={!!onClick}
     onClick={onClick}
-    style={{ cursor: onClick ? 'pointer' : 'default', borderTop: `3px solid ${color}` }}
+    style={{ cursor: onClick ? 'pointer' : 'default', borderTop: `3px solid ${color}`, minHeight: 120 }}
     size="small"
   >
     <Statistic
@@ -261,24 +261,27 @@ const Dashboard = () => {
           <Tooltip title="Only items that still need restocking — variants already covered by a pending Purchase Order are excluded.">
             <div>
               <StatCard
-                title="Low Stock Alerts"
-                value={stats?.lowStockCount ?? 0}
-                color={stats?.lowStockCount > 0 ? COLORS.warning : COLORS.success}
-                icon={<WarningOutlined />}
-                loading={loading}
-                onClick={stats?.lowStockCount > 0 ? () => navigate('/products?lowStock=true') : null}
-                extra={
-                  <Space direction="vertical" size={2} style={{ marginTop: 4 }}>
-                    {stats?.criticalCount > 0 && (
-                      <Tag color="red">
-                        <FireOutlined /> {stats.criticalCount} critical
-                      </Tag>
-                    )}
+                title={
+                  <Space>
+                    <span>Low Stock Alerts</span>
                     <Text type="secondary" style={{ fontSize: 11 }}>
                       PO-covered items excluded
                     </Text>
                   </Space>
                 }
+                value={stats?.lowStockCount ?? 0}
+                extra={
+                  stats?.criticalCount > 0 ? (
+                    <Tag color="red">
+                      <FireOutlined /> {stats.criticalCount}
+                    </Tag>
+                  ) : null
+                }
+                suffix={<span style={{ fontSize: '12px' }}>SKU</span>}
+                color={stats?.lowStockCount > 0 ? COLORS.warning : COLORS.success}
+                icon={<WarningOutlined />}
+                loading={loading}
+                onClick={stats?.lowStockCount > 0 ? () => navigate('/products?lowStock=true') : null}
               />
             </div>
           </Tooltip>
