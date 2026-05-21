@@ -4,16 +4,20 @@
  *
  * Core rule:
  *   For each product variant where  stock < lowStockThreshold:
- *     pendingQty    = sum of (quantity - receivedQuantity) across all PO items
- *                     with status IN ['sent','confirmed'] for this exact
- *                     (productId, variantSku) combination
- *     effectiveStock = stock + pendingQty
+ *     filterQty      = sum of remaining qty across POs with status IN
+ *                      ['sent','confirmed'] — used to decide whether to HIDE
+ *                      the alert (stock is already on the way from supplier)
+ *     displayQty     = sum of remaining qty across ALL non-terminal POs
+ *                      (draft + sent + confirmed + partially_received) —
+ *                      shown in the "Pending PO" column so users can see
+ *                      any PO that exists, regardless of status
+ *     effectiveStock = stock + filterQty
  *
  *   → ALERT only if effectiveStock < lowStockThreshold
- *   → SKIP  if a pending PO will fully cover the gap  (no noise)
+ *   → SKIP  if a sent/confirmed PO will fully cover the gap  (no noise)
  *
- * This prevents the common "false alarm" where a buyer already placed a
- * replenishment order but the stock hasn't physically arrived yet.
+ * Two separate maps are built so draft POs appear in the display column
+ * without incorrectly suppressing alerts that aren't truly covered yet.
  */
 
 const Product       = require('../models/Product');
@@ -21,18 +25,19 @@ const PurchaseOrder = require('../models/PurchaseOrder');
 const { emitToTenant } = require('../socket');
 
 // ─────────────────────────────────────────────────────────────────
-// Build a lookup map:  variantSku → pending incoming quantity
-// Scoped to one tenant; only considers 'sent' and 'confirmed' POs.
+// Build a lookup map:  `${productId}::${variantSku}` → remaining qty
+// @param {ObjectId} tenantId
+// @param {string[]} statuses — PO statuses to include
 // ─────────────────────────────────────────────────────────────────
-const buildPendingPOMap = async (tenantId) => {
+const buildPendingPOMap = async (tenantId, statuses = ['sent', 'confirmed']) => {
   const pendingPOs = await PurchaseOrder.find({
     tenantId,
-    status: { $in: ['sent', 'confirmed'] },
+    status: { $in: statuses },
   })
     .select('items')
     .lean();
 
-  const map = {}; // key: `${productId}::${variantSku}` → qty
+  const map = {};
   for (const po of pendingPOs) {
     for (const item of po.items) {
       const remaining = item.quantity - (item.receivedQuantity || 0);
@@ -45,17 +50,23 @@ const buildPendingPOMap = async (tenantId) => {
   return map;
 };
 
+// All PO statuses that are not yet fully received or cancelled
+const ALL_PENDING_STATUSES = ['draft', 'sent', 'confirmed', 'partially_received'];
+
 // ─────────────────────────────────────────────────────────────────
 // Main function — returns an array of alert objects.
 // Called by: productController.getLowStock, dashboardController.getLowStockAlerts
 // ─────────────────────────────────────────────────────────────────
 const getSmartLowStockAlerts = async (tenantId) => {
-  const [products, pendingPOMap] = await Promise.all([
+  const [products, filterMap, displayMap] = await Promise.all([
     Product.find({ tenantId, isActive: true })
       .select('name category variants supplierId')
       .populate('supplierId', 'name')
       .lean(),
-    buildPendingPOMap(tenantId),
+    // filterMap — sent/confirmed only: used to decide whether to suppress the alert
+    buildPendingPOMap(tenantId, ['sent', 'confirmed']),
+    // displayMap — all non-terminal statuses: shown in the "Pending PO" column
+    buildPendingPOMap(tenantId, ALL_PENDING_STATUSES),
   ]);
 
   const alerts = [];
@@ -64,11 +75,12 @@ const getSmartLowStockAlerts = async (tenantId) => {
     for (const variant of product.variants) {
       if (variant.stock >= variant.lowStockThreshold) continue; // healthy — skip
 
-      const key        = `${product._id}::${variant.sku}`;
-      const pendingQty = pendingPOMap[key] || 0;
-      const effectiveStock = variant.stock + pendingQty;
+      const key          = `${product._id}::${variant.sku}`;
+      const filterQty    = filterMap[key]  || 0; // sent/confirmed qty — for smart hide decision
+      const displayQty   = displayMap[key] || 0; // all pending qty   — shown in column
+      const effectiveStock = variant.stock + filterQty;
 
-      if (effectiveStock >= variant.lowStockThreshold) continue; // PO covers the gap — skip
+      if (effectiveStock >= variant.lowStockThreshold) continue; // sent/confirmed PO covers it — skip
 
       alerts.push({
         productId:      product._id,
@@ -78,7 +90,7 @@ const getSmartLowStockAlerts = async (tenantId) => {
         sku:            variant.sku,
         attributes:     variant.attributes || {},
         currentStock:   variant.stock,
-        pendingPOQty:   pendingQty,
+        pendingPOQty:   displayQty,   // ← ALL pending POs (incl. draft) shown to user
         effectiveStock,
         threshold:      variant.lowStockThreshold,
         deficit:        variant.lowStockThreshold - effectiveStock,
