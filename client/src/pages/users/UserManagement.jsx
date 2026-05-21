@@ -227,22 +227,22 @@ const UserManagement = () => {
     <Space direction="vertical" size="large" style={{ width: '100%' }}>
 
       {/* Header */}
-      <Row justify="space-between" align="middle">
-        <Col>
+      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+        <div>
           <Title level={3} style={{ margin: 0 }}>
             <TeamOutlined style={{ marginRight: 8 }} />
             User Management
           </Title>
           <Text type="secondary">Manage team members and their access roles</Text>
-        </Col>
+        </div>
         {isOwner && (
-          <Col>
+          <div className="page-header-actions">
             <Button type="primary" icon={<UserAddOutlined />} onClick={openInvite}>
               Invite User
             </Button>
-          </Col>
+          </div>
         )}
-      </Row>
+      </div>
 
       {!isOwner && (
         <Alert
@@ -254,7 +254,7 @@ const UserManagement = () => {
       )}
 
       {/* Stats */}
-      <Row gutter={[16, 16]}>
+      <Row gutter={[16, 16]} className="stat-cards-row">
         <Col xs={12} sm={6}>
           <Card size="small" style={{ borderTop: '3px solid #1890ff' }}>
             <Statistic
@@ -307,6 +307,7 @@ const UserManagement = () => {
         rowKey="_id"
         loading={loading}
         pagination={{ pageSize: 20, hideOnSinglePage: true }}
+        scroll={{ x: 700 }}
         rowClassName={(r) => (!r.isActive ? 'ant-table-row-disabled' : '')}
       />
 

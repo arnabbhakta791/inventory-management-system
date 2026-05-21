@@ -192,24 +192,24 @@ const ProductForm = () => {
           <Col xs={24} lg={14}>
             <Card title="Product Details">
               <Row gutter={16}>
-                <Col span={16}>
+                <Col xs={24} sm={16}>
                   <Form.Item name="name" label="Product Name" rules={[{ required: true }]}>
                     <Input placeholder="e.g. Classic T-Shirt" />
                   </Form.Item>
                 </Col>
-                <Col span={8}>
+                <Col xs={24} sm={8}>
                   <Form.Item name="brand" label="Brand">
                     <Input placeholder="e.g. Nike" />
                   </Form.Item>
                 </Col>
               </Row>
               <Row gutter={16}>
-                <Col span={12}>
+                <Col xs={24} sm={12}>
                   <Form.Item name="category" label="Category" rules={[{ required: true }]}>
                     <Input placeholder="e.g. Clothing, Electronics" />
                   </Form.Item>
                 </Col>
-                <Col span={12}>
+                <Col xs={24} sm={12}>
                   <Form.Item name="supplierId" label="Supplier">
                     <Select placeholder="Select supplier" allowClear>
                       {suppliers.map((s) => <Option key={s._id} value={s._id}>{s.name}</Option>)}

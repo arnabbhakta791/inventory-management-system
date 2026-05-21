@@ -239,60 +239,56 @@ const OrderDetail = () => {
   return (
     <Space direction="vertical" size="large" style={{ width: '100%' }}>
       {/* Header */}
-      <Row justify="space-between" align="middle">
-        <Col>
-          <Space>
-            <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/orders')}>Back</Button>
-            <Title level={3} style={{ margin: 0 }}>{order.orderNumber}</Title>
-            <Tag color={cfg.color} style={{ fontSize: 13 }}>{cfg.label}</Tag>
-          </Space>
-        </Col>
+      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+        <Space wrap>
+          <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/orders')}>Back</Button>
+          <Title level={3} style={{ margin: 0 }}>{order.orderNumber}</Title>
+          <Tag color={cfg.color} style={{ fontSize: 13 }}>{cfg.label}</Tag>
+        </Space>
 
         {/* Action buttons — manager / owner only */}
         {isManagerOrAbove && (
-          <Col>
-            <Space>
-              {canConfirm && (
-                <Button type="primary" icon={<CheckOutlined />} loading={actionLoading}
-                  onClick={() => handleStatusChange('confirmed')}>
-                  Confirm
+          <div className="page-header-actions">
+            {canConfirm && (
+              <Button type="primary" icon={<CheckOutlined />} loading={actionLoading}
+                onClick={() => handleStatusChange('confirmed')}>
+                Confirm
+              </Button>
+            )}
+            {canShip && (
+              <Button type="primary" icon={<CarOutlined />} loading={actionLoading}
+                onClick={() => handleStatusChange('shipped')}>
+                Mark Shipped
+              </Button>
+            )}
+            {canDeliver && (
+              <Button type="primary" icon={<TrophyOutlined />} loading={actionLoading}
+                onClick={() => handleStatusChange('delivered')}>
+                Mark Delivered
+              </Button>
+            )}
+            {canFulfill && (
+              <Button icon={<InboxOutlined />} onClick={openFulfillModal}
+                style={{ borderColor: '#fa8c16', color: '#fa8c16' }}>
+                Fulfill Items
+              </Button>
+            )}
+            {canCancel && (
+              <Popconfirm
+                title="Cancel this order? Unfulfilled stock will be released back."
+                onConfirm={() => handleStatusChange('cancelled')}
+                okText="Yes, Cancel"
+                cancelText="No"
+                okButtonProps={{ danger: true }}
+              >
+                <Button danger icon={<CloseOutlined />} loading={actionLoading}>
+                  Cancel Order
                 </Button>
-              )}
-              {canShip && (
-                <Button type="primary" icon={<CarOutlined />} loading={actionLoading}
-                  onClick={() => handleStatusChange('shipped')}>
-                  Mark Shipped
-                </Button>
-              )}
-              {canDeliver && (
-                <Button type="primary" icon={<TrophyOutlined />} loading={actionLoading}
-                  onClick={() => handleStatusChange('delivered')}>
-                  Mark Delivered
-                </Button>
-              )}
-              {canFulfill && (
-                <Button icon={<InboxOutlined />} onClick={openFulfillModal}
-                  style={{ borderColor: '#fa8c16', color: '#fa8c16' }}>
-                  Fulfill Items
-                </Button>
-              )}
-              {canCancel && (
-                <Popconfirm
-                  title="Cancel this order? Unfulfilled stock will be released back."
-                  onConfirm={() => handleStatusChange('cancelled')}
-                  okText="Yes, Cancel"
-                  cancelText="No"
-                  okButtonProps={{ danger: true }}
-                >
-                  <Button danger icon={<CloseOutlined />} loading={actionLoading}>
-                    Cancel Order
-                  </Button>
-                </Popconfirm>
-              )}
-            </Space>
-          </Col>
+              </Popconfirm>
+            )}
+          </div>
         )}
-      </Row>
+      </div>
 
       {/* Progress stepper */}
       {!isCancelled && !isDelivered && order.status !== 'partially_fulfilled' && (
@@ -372,6 +368,7 @@ const OrderDetail = () => {
               rowKey="variantSku"
               pagination={false}
               size="small"
+              scroll={{ x: 650 }}
               summary={() => (
                 <Table.Summary.Row>
                   <Table.Summary.Cell colSpan={5} align="right">

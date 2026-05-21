@@ -136,20 +136,18 @@ const OrderList = () => {
 
   return (
     <Space direction="vertical" size="large" style={{ width: '100%' }}>
-      <Row justify="space-between" align="middle">
-        <Col><Title level={3} style={{ margin: 0 }}>Sales Orders</Title></Col>
-        <Col>
-          <Space>
-            <Button icon={<ReloadOutlined />} onClick={() => fetchOrders(1)}>Refresh</Button>
-            <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/orders/new')}>
-              New Order
-            </Button>
-          </Space>
-        </Col>
-      </Row>
+      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+        <Title level={3} style={{ margin: 0 }}>Sales Orders</Title>
+        <div className="page-header-actions">
+          <Button icon={<ReloadOutlined />} onClick={() => fetchOrders(1)}>Refresh</Button>
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/orders/new')}>
+            New Order
+          </Button>
+        </div>
+      </div>
 
       {/* Summary cards */}
-      <Row gutter={16}>
+      <Row gutter={[12, 12]}>
         <Col xs={8}>
           <Card size="small">
             <Statistic title="Total Orders" value={summary.total} valueStyle={{ color: '#1890ff' }} />
@@ -175,8 +173,8 @@ const OrderList = () => {
 
       {/* Filters */}
       <Card size="small">
-        <Row gutter={12}>
-          <Col xs={24} sm={10}>
+        <Row gutter={[12, 8]} className="filter-row">
+          <Col xs={24} sm={12} md={10}>
             <Input
               prefix={<SearchOutlined />}
               placeholder="Search by customer name..."
@@ -185,7 +183,7 @@ const OrderList = () => {
               allowClear
             />
           </Col>
-          <Col xs={24} sm={6}>
+          <Col xs={24} sm={12} md={6}>
             <Select
               allowClear
               placeholder="All statuses"

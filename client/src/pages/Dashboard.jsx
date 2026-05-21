@@ -35,7 +35,7 @@ const StatCard = ({ title, value, prefix, suffix, color, icon, loading, onClick,
   <Card
     hoverable={!!onClick}
     onClick={onClick}
-    style={{ cursor: onClick ? 'pointer' : 'default', borderTop: `3px solid ${color}`, minHeight: 120 }}
+    style={{ cursor: onClick ? 'pointer' : 'default', borderTop: `3px solid ${color}` }}
     size="small"
   >
     <Statistic
@@ -213,8 +213,8 @@ const Dashboard = () => {
     <Space direction="vertical" size="large" style={{ width: '100%' }}>
 
       {/* ── Header ─────────────────────────────────────────────── */}
-      <Row justify="space-between" align="middle">
-        <Col>
+      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+        <div>
           <Title level={3} style={{ margin: 0 }}>
             Dashboard
             {tenant && <Text type="secondary" style={{ fontSize: 14, fontWeight: 400, marginLeft: 10 }}>— {tenant.name}</Text>}
@@ -232,16 +232,16 @@ const Dashboard = () => {
               )}
             </Space>
           )}
-        </Col>
-        <Col>
+        </div>
+        <div className="page-header-actions">
           <Button icon={<ReloadOutlined />} onClick={() => fetchAll()} loading={loading}>
             Refresh
           </Button>
-        </Col>
-      </Row>
+        </div>
+      </div>
 
       {/* ── KPI Stat Cards ─────────────────────────────────────── */}
-      <Row gutter={[16, 16]}>
+      <Row gutter={[16, 16]} className="stat-cards-row">
         <Col xs={12} sm={12} lg={6}>
           <StatCard
             title="Inventory Value"

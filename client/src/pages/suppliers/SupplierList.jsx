@@ -151,23 +151,17 @@ const SupplierList = () => {
 
   return (
     <Space direction="vertical" size="large" style={{ width: '100%' }}>
-      <Row justify="space-between" align="middle">
-        <Col><Title level={3} style={{ margin: 0 }}>Suppliers</Title></Col>
-        <Col>
-          <Space>
-            <Button icon={<ReloadOutlined />} onClick={() => fetchSuppliers(1)}>Refresh</Button>
-            {isManagerOrAbove && (
-              <Button
-                type="primary"
-                icon={<PlusOutlined />}
-                onClick={() => navigate('/suppliers/new')}
-              >
-                Add Supplier
-              </Button>
-            )}
-          </Space>
-        </Col>
-      </Row>
+      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+        <Title level={3} style={{ margin: 0 }}>Suppliers</Title>
+        <div className="page-header-actions">
+          <Button icon={<ReloadOutlined />} onClick={() => fetchSuppliers(1)}>Refresh</Button>
+          {isManagerOrAbove && (
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/suppliers/new')}>
+              Add Supplier
+            </Button>
+          )}
+        </div>
+      </div>
 
       <Card size="small">
         <Input
@@ -196,6 +190,7 @@ const SupplierList = () => {
             fetchSuppliers(page);
           },
         }}
+        scroll={{ x: 800 }}
       />
     </Space>
   );

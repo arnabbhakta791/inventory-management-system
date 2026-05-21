@@ -154,15 +154,15 @@ const StockMovements = () => {
 
   return (
     <Space direction="vertical" size="large" style={{ width: '100%' }}>
-      <Row justify="space-between" align="middle">
-        <Col><Title level={3} style={{ margin: 0 }}>Stock Movement Log</Title></Col>
-        <Col>
+      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+        <Title level={3} style={{ margin: 0 }}>Stock Movement Log</Title>
+        <div className="page-header-actions">
           <Button icon={<ReloadOutlined />} onClick={() => fetchMovements(1)}>Refresh</Button>
-        </Col>
-      </Row>
+        </div>
+      </div>
 
       {/* Stats row */}
-      <Row gutter={16}>
+      <Row gutter={[12, 12]} className="stat-cards-row">
         <Col xs={8}>
           <Card size="small">
             <Statistic
@@ -196,7 +196,7 @@ const StockMovements = () => {
 
       {/* Filters */}
       <Card size="small">
-        <Row gutter={12} align="middle">
+        <Row gutter={[12, 8]} className="filter-row" align="middle">
           <Col xs={24} sm={7}>
             <Select
               allowClear

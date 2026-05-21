@@ -230,7 +230,7 @@ const POForm = () => {
                 </Select>
               </Form.Item>
               <Row gutter={16}>
-                <Col span={12}>
+                <Col xs={24} sm={12}>
                   <Form.Item name="expectedDeliveryDate" label="Expected Delivery">
                     <DatePicker
                       style={{ width: '100%' }}

@@ -187,30 +187,26 @@ const PODetail = () => {
   return (
     <Space direction="vertical" size="large" style={{ width: '100%' }}>
       {/* Header */}
-      <Row justify="space-between" align="middle">
-        <Col>
-          <Space>
-            <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/purchase-orders')}>Back</Button>
-            <Title level={3} style={{ margin: 0 }}>{po.orderNumber}</Title>
-            <Tag color={cfg.color} style={{ fontSize: 13 }}>{cfg.label}</Tag>
-          </Space>
-        </Col>
+      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+        <Space wrap>
+          <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/purchase-orders')}>Back</Button>
+          <Title level={3} style={{ margin: 0 }}>{po.orderNumber}</Title>
+          <Tag color={cfg.color} style={{ fontSize: 13 }}>{cfg.label}</Tag>
+        </Space>
         {/* Action buttons — manager / owner only */}
         {isManagerOrAbove && (
-          <Col>
-            <Space>
-              {canSend     && <Button type="primary"  icon={<SendOutlined />}    loading={actionLoading} onClick={() => handleStatusChange('sent')}>Mark Sent</Button>}
-              {canConfirm  && <Button type="primary"  icon={<CheckOutlined />}   loading={actionLoading} onClick={() => handleStatusChange('confirmed')}>Confirm PO</Button>}
-              {canReceive  && <Button type="primary"  icon={<InboxOutlined />}   loading={actionLoading} onClick={() => setReceiveModal(true)}>Receive Items</Button>}
-              {canCancel   && (
-                <Popconfirm title="Cancel this purchase order?" onConfirm={handleCancel} okText="Yes" cancelText="No">
-                  <Button danger icon={<CloseOutlined />} loading={actionLoading}>Cancel PO</Button>
-                </Popconfirm>
-              )}
-            </Space>
-          </Col>
+          <div className="page-header-actions">
+            {canSend     && <Button type="primary"  icon={<SendOutlined />}    loading={actionLoading} onClick={() => handleStatusChange('sent')}>Mark Sent</Button>}
+            {canConfirm  && <Button type="primary"  icon={<CheckOutlined />}   loading={actionLoading} onClick={() => handleStatusChange('confirmed')}>Confirm PO</Button>}
+            {canReceive  && <Button type="primary"  icon={<InboxOutlined />}   loading={actionLoading} onClick={() => setReceiveModal(true)}>Receive Items</Button>}
+            {canCancel   && (
+              <Popconfirm title="Cancel this purchase order?" onConfirm={handleCancel} okText="Yes" cancelText="No">
+                <Button danger icon={<CloseOutlined />} loading={actionLoading}>Cancel PO</Button>
+              </Popconfirm>
+            )}
+          </div>
         )}
-      </Row>
+      </div>
 
       {/* Status stepper */}
       {!isCancelled && (

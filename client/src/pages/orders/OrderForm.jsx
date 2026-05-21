@@ -274,12 +274,12 @@ const OrderForm = () => {
                 <Input placeholder="e.g. Rahul Sharma" />
               </Form.Item>
               <Row gutter={16}>
-                <Col span={12}>
+                <Col xs={24} sm={12}>
                   <Form.Item name="customerEmail" label="Email">
                     <Input placeholder="customer@example.com" />
                   </Form.Item>
                 </Col>
-                <Col span={12}>
+                <Col xs={24} sm={12}>
                   <Form.Item name="customerPhone" label="Phone">
                     <Input placeholder="+91 98765 43210" />
                   </Form.Item>

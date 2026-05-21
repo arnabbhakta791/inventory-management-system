@@ -111,7 +111,7 @@ const SupplierForm = () => {
           <Col xs={24} lg={14}>
             <Card title="Basic Information">
               <Row gutter={16}>
-                <Col span={14}>
+                <Col xs={24} sm={14}>
                   <Form.Item
                     name="name"
                     label="Supplier Name"
@@ -120,7 +120,7 @@ const SupplierForm = () => {
                     <Input placeholder="e.g. Global Textiles Ltd." />
                   </Form.Item>
                 </Col>
-                <Col span={10}>
+                <Col xs={24} sm={10}>
                   <Form.Item name="contactPerson" label="Contact Person">
                     <Input placeholder="e.g. Ravi Kumar" />
                   </Form.Item>
@@ -128,7 +128,7 @@ const SupplierForm = () => {
               </Row>
 
               <Row gutter={16}>
-                <Col span={12}>
+                <Col xs={24} sm={12}>
                   <Form.Item
                     name="email"
                     label="Email"
@@ -137,7 +137,7 @@ const SupplierForm = () => {
                     <Input placeholder="supplier@example.com" />
                   </Form.Item>
                 </Col>
-                <Col span={12}>
+                <Col xs={24} sm={12}>
                   <Form.Item name="phone" label="Phone">
                     <Input placeholder="+91 98765 43210" />
                   </Form.Item>
@@ -154,24 +154,24 @@ const SupplierForm = () => {
                 <Input placeholder="123 Industrial Area" />
               </Form.Item>
               <Row gutter={16}>
-                <Col span={12}>
+                <Col xs={24} sm={12}>
                   <Form.Item name="address.city" label="City">
                     <Input placeholder="Mumbai" />
                   </Form.Item>
                 </Col>
-                <Col span={12}>
+                <Col xs={24} sm={12}>
                   <Form.Item name="address.state" label="State">
                     <Input placeholder="Maharashtra" />
                   </Form.Item>
                 </Col>
               </Row>
               <Row gutter={16}>
-                <Col span={8}>
+                <Col xs={24} sm={8}>
                   <Form.Item name="address.zip" label="ZIP / PIN">
                     <Input placeholder="400001" />
                   </Form.Item>
                 </Col>
-                <Col span={16}>
+                <Col xs={24} sm={16}>
                   <Form.Item name="address.country" label="Country">
                     <Input placeholder="India" />
                   </Form.Item>

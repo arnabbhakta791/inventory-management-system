@@ -152,15 +152,82 @@ html, body {
 .mobile-sidebar-drawer .ant-drawer-title { color: #fff; font-weight: 700; }
 .mobile-sidebar-drawer .ant-drawer-close { color: rgba(255,255,255,0.6); }
 
+/* ── Stat cards: equal height (all screens) ──────────────────── */
+.stat-cards-row > .ant-col {
+  display: flex !important;
+}
+.stat-cards-row > .ant-col > * {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.stat-cards-row .ant-card {
+  flex: 1;
+}
+
 /* ── Responsive helpers ───────────────────────────────────────── */
 @media (max-width: 768px) {
   .app-content {
-    margin: 12px;
-    padding: 16px;
+    margin: 8px;
+    padding: 12px;
     border-radius: var(--radius);
-    min-height: calc(100vh - 56px - 24px);
+    min-height: calc(100vh - 56px - 16px);
   }
   .hide-mobile { display: none !important; }
+
+  /* Page headers: stack title and action buttons vertically */
+  .page-header {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 12px;
+  }
+  .page-header .page-header-actions {
+    width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .page-header .page-header-actions .ant-btn {
+    flex: 1;
+    min-width: 0;
+  }
+
+  /* Filter rows: full-width on mobile */
+  .filter-row .ant-col {
+    flex: 0 0 100% !important;
+    max-width: 100% !important;
+    margin-bottom: 8px;
+  }
+  .filter-row .ant-select { width: 100% !important; }
+  .filter-row .ant-input  { width: 100% !important; }
+
+  /* Tables: smaller text + padding on mobile */
+  .ant-table { font-size: 13px !important; }
+  .ant-table-thead > tr > th,
+  .ant-table-tbody > tr > td { padding: 8px 10px !important; }
+
+  /* Card body: tighter on mobile */
+  .ant-card-body { padding: 12px !important; }
+
+  /* Typography: slightly smaller headings */
+  .ant-typography h3 { font-size: 18px !important; }
+
+  /* Ant statistic in stat cards: smaller number */
+  .stat-cards-row .ant-statistic-content-value { font-size: 22px !important; }
+
+  /* Steps component: compact on mobile */
+  .ant-steps { font-size: 12px !important; }
+  .ant-steps-item-title { font-size: 12px !important; }
+
+  /* Descriptions: single column on mobile */
+  .ant-descriptions-item-label { font-size: 12px !important; }
+  .ant-descriptions-item-content { font-size: 13px !important; }
+
+  /* Modal: near full-width on mobile */
+  .ant-modal { max-width: calc(100vw - 32px) !important; }
+
+  /* Form action buttons: full width on mobile */
+  .ant-form .ant-space { flex-wrap: wrap; }
 }
 @media (min-width: 769px) {
   .hide-desktop { display: none !important; }

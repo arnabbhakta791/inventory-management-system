@@ -224,39 +224,37 @@ const ProductList = () => {
         />
       )}
 
-      <Row justify="space-between" align="middle">
-        <Col><Title level={3} style={{ margin: 0 }}>Products</Title></Col>
-        <Col>
-          <Space>
-            {lowStockCount > 0 && (
-              <Tooltip
-                title={
-                  poSafeCount > 0
-                    ? `${poSafeCount} of these ${lowStockCount} item${lowStockCount > 1 ? 's are' : ' is'} already covered by a pending Purchase Order — no action needed for those.`
-                    : 'All low-stock items need restocking'
-                }
-              >
-                <Tag color="red" icon={<WarningOutlined />}>
-                  {lowStockCount} Low Stock
-                  {poSafeCount > 0 && (
-                    <span style={{ marginLeft: 5, opacity: 0.85, fontSize: 11 }}>
-                      · {poSafeCount} covered by PO
-                    </span>
-                  )}
-                </Tag>
-              </Tooltip>
-            )}
-            <Button icon={<ReloadOutlined />} onClick={() => fetchProducts(1)}>Refresh</Button>
-            {isManagerOrAbove && (
-              <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/products/new')}>Add Product</Button>
-            )}
-          </Space>
-        </Col>
-      </Row>
+      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+        <Title level={3} style={{ margin: 0 }}>Products</Title>
+        <div className="page-header-actions">
+          {lowStockCount > 0 && (
+            <Tooltip
+              title={
+                poSafeCount > 0
+                  ? `${poSafeCount} of these ${lowStockCount} item${lowStockCount > 1 ? 's are' : ' is'} already covered by a pending Purchase Order — no action needed for those.`
+                  : 'All low-stock items need restocking'
+              }
+            >
+              <Tag color="red" icon={<WarningOutlined />}>
+                {lowStockCount} Low Stock
+                {poSafeCount > 0 && (
+                  <span style={{ marginLeft: 5, opacity: 0.85, fontSize: 11 }}>
+                    · {poSafeCount} covered by PO
+                  </span>
+                )}
+              </Tag>
+            </Tooltip>
+          )}
+          <Button icon={<ReloadOutlined />} onClick={() => fetchProducts(1)}>Refresh</Button>
+          {isManagerOrAbove && (
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/products/new')}>Add Product</Button>
+          )}
+        </div>
+      </div>
 
       <Card size="small">
-        <Row gutter={12}>
-          <Col flex="auto">
+        <Row gutter={[12, 8]} className="filter-row">
+          <Col xs={24} sm={24} md={0} lg={0} xl={0}>
             <Input
               prefix={<SearchOutlined />}
               placeholder="Search products..."
@@ -265,21 +263,30 @@ const ProductList = () => {
               allowClear
             />
           </Col>
-          <Col>
+          <Col xs={0} sm={0} md={1} lg={1} xl={1} flex="auto">
+            <Input
+              prefix={<SearchOutlined />}
+              placeholder="Search products..."
+              value={filters.search}
+              onChange={(e) => setFilters((f) => ({ ...f, search: e.target.value }))}
+              allowClear
+            />
+          </Col>
+          <Col xs={12} md={6}>
             <Select
               placeholder="Category"
               allowClear
-              style={{ width: 160 }}
+              style={{ width: '100%' }}
               value={filters.category || undefined}
               onChange={(v) => setFilters((f) => ({ ...f, category: v || '' }))}
             >
               {categories.map((c) => <Option key={c} value={c}>{c}</Option>)}
             </Select>
           </Col>
-          <Col>
+          <Col xs={12} md={5}>
             <Select
               value={filters.isActive}
-              style={{ width: 120 }}
+              style={{ width: '100%' }}
               onChange={(v) => setFilters((f) => ({ ...f, isActive: v }))}
             >
               <Option value="true">Active</Option>

@@ -138,46 +138,47 @@ const POList = () => {
 
   return (
     <Space direction="vertical" size="large" style={{ width: '100%' }}>
-      <Row justify="space-between" align="middle">
-        <Col><Title level={3} style={{ margin: 0 }}>Purchase Orders</Title></Col>
-        <Col>
-          <Space>
-            <Button icon={<ReloadOutlined />} onClick={() => fetchOrders(1)}>Refresh</Button>
-            {isManagerOrAbove && (
-              <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/purchase-orders/new')}>
-                New PO
-              </Button>
-            )}
-          </Space>
-        </Col>
-      </Row>
+      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+        <Title level={3} style={{ margin: 0 }}>Purchase Orders</Title>
+        <div className="page-header-actions">
+          <Button icon={<ReloadOutlined />} onClick={() => fetchOrders(1)}>Refresh</Button>
+          {isManagerOrAbove && (
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/purchase-orders/new')}>
+              New PO
+            </Button>
+          )}
+        </div>
+      </div>
 
       <Card size="small">
-        <Space>
-          <span style={{ color: '#888' }}>Filter by status:</span>
-          <Select
-            allowClear
-            placeholder="All statuses"
-            style={{ width: 180 }}
-            value={statusFilter || undefined}
-            onChange={(v) => setStatus(v || '')}
-          >
-            {Object.entries(STATUS_CONFIG).map(([val, cfg]) => (
-              <Option key={val} value={val}>
-                <Tag color={cfg.color}>{cfg.label}</Tag>
-              </Option>
-            ))}
-          </Select>
-          <Space style={{ marginLeft: 16 }}>
-            {['sent', 'confirmed', 'partially_received'].map((s) =>
-              statusCounts[s] ? (
-                <Tag key={s} color={STATUS_CONFIG[s].color}>
-                  {statusCounts[s]} {STATUS_CONFIG[s].label}
-                </Tag>
-              ) : null
-            )}
-          </Space>
-        </Space>
+        <Row gutter={[12, 8]} className="filter-row" align="middle">
+          <Col xs={24} sm={12} md={8}>
+            <Select
+              allowClear
+              placeholder="All statuses"
+              style={{ width: '100%' }}
+              value={statusFilter || undefined}
+              onChange={(v) => setStatus(v || '')}
+            >
+              {Object.entries(STATUS_CONFIG).map(([val, cfg]) => (
+                <Option key={val} value={val}>
+                  <Tag color={cfg.color}>{cfg.label}</Tag>
+                </Option>
+              ))}
+            </Select>
+          </Col>
+          <Col xs={24} sm={12} md={16}>
+            <Space wrap>
+              {['sent', 'confirmed', 'partially_received'].map((s) =>
+                statusCounts[s] ? (
+                  <Tag key={s} color={STATUS_CONFIG[s].color}>
+                    {statusCounts[s]} {STATUS_CONFIG[s].label}
+                  </Tag>
+                ) : null
+              )}
+            </Space>
+          </Col>
+        </Row>
       </Card>
 
       <Table
