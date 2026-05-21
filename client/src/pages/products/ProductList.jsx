@@ -5,7 +5,7 @@ import {
 } from 'antd';
 import {
   PlusOutlined, SearchOutlined, EditOutlined,
-  DeleteOutlined, WarningOutlined, ReloadOutlined, ShopOutlined,
+  DeleteOutlined, WarningOutlined, ReloadOutlined, ShopOutlined, InboxOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../../api/axios';
@@ -24,8 +24,10 @@ const ProductList = () => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [categories, setCategories] = useState([]);
-  const [lowStockCount, setLowStockCount] = useState(0);   // raw: variants below threshold
-  const [poSafeCount,   setPoSafeCount]   = useState(0);   // smart: already covered by pending PO
+  const [lowStockCount, setLowStockCount] = useState(0);   // raw: products with any variant below threshold
+  const [poSafeCount,   setPoSafeCount]   = useState(0);   // how many of those are already covered by a PO
+  // alertMap: { "productId::sku": alertObject } — only contains variants that NEED action (not PO-covered)
+  const [alertMap,      setAlertMap]      = useState({});
   const [filters, setFilters] = useState({
     search: '', category: '', isActive: 'true',
     supplierId: urlSupplierId,
@@ -56,10 +58,16 @@ const ProductList = () => {
         api.get('/products/low-stock'),
       ]);
       setCategories(catRes.data.data);
-      const raw   = lowStockRes.data.rawCount ?? lowStockRes.data.count;
-      const smart = lowStockRes.data.count;
+      const raw    = lowStockRes.data.rawCount ?? lowStockRes.data.count;
+      const smart  = lowStockRes.data.count;
       setLowStockCount(raw);
-      setPoSafeCount(raw - smart); // how many of the raw alerts are already covered by a PO
+      setPoSafeCount(raw - smart);
+      // Build lookup map from smart alerts (variants that still need action)
+      const map = {};
+      (lowStockRes.data.data || []).forEach((a) => {
+        map[`${a.productId}::${a.sku}`] = a;
+      });
+      setAlertMap(map);
     } catch { /* silent */ }
   }, []);
 
@@ -95,10 +103,25 @@ const ProductList = () => {
       render: (_, record) => (
         <Space wrap>
           {record.variants.slice(0, 3).map((v) => {
-            const isLow = v.stock < v.lowStockThreshold;
+            const isLow        = v.stock < v.lowStockThreshold;
+            const alert        = alertMap[`${record._id}::${v.sku}`];
+            // needsAction: below threshold AND no PO is covering it
+            const needsAction  = isLow && !!alert;
+            // coveredByPO: below threshold BUT a pending PO will replenish it
+            const coveredByPO  = isLow && !alert;
+
+            const tooltipText = needsAction
+              ? `Stock: ${v.stock} / Threshold: ${v.lowStockThreshold}${alert.pendingPOQty > 0 ? ` · ${alert.pendingPOQty} incoming via PO (still not enough)` : ''} — needs restocking`
+              : coveredByPO
+              ? `Stock: ${v.stock} / Threshold: ${v.lowStockThreshold} — covered by a pending Purchase Order`
+              : `Stock: ${v.stock} / Threshold: ${v.lowStockThreshold}`;
+
             return (
-              <Tooltip key={v.sku} title={`Stock: ${v.stock} | Threshold: ${v.lowStockThreshold}`}>
-                <Tag color={isLow ? 'red' : 'default'} icon={isLow ? <WarningOutlined /> : null}>
+              <Tooltip key={v.sku} title={tooltipText}>
+                <Tag
+                  color={needsAction ? 'red' : coveredByPO ? 'orange' : 'default'}
+                  icon={needsAction ? <WarningOutlined /> : coveredByPO ? <InboxOutlined /> : null}
+                >
                   {v.sku}: {v.stock}
                 </Tag>
               </Tooltip>
@@ -112,9 +135,19 @@ const ProductList = () => {
       title: 'Total Stock',
       key: 'totalStock',
       render: (_, record) => {
-        const total = record.variants.reduce((s, v) => s + v.stock, 0);
-        const hasLow = record.variants.some((v) => v.stock < v.lowStockThreshold);
-        return <Badge count={hasLow ? '!' : 0} size="small" offset={[4, 0]}><span style={{ color: hasLow ? '#ff4d4f' : 'inherit', fontWeight: 600 }}>{total}</span></Badge>;
+        const total       = record.variants.reduce((s, v) => s + v.stock, 0);
+        const hasAction   = record.variants.some((v) => v.stock < v.lowStockThreshold && !!alertMap[`${record._id}::${v.sku}`]);
+        const hasCovered  = record.variants.some((v) => v.stock < v.lowStockThreshold && !alertMap[`${record._id}::${v.sku}`]);
+        const color       = hasAction ? '#ff4d4f' : hasCovered ? '#fa8c16' : 'inherit';
+        const badge       = hasAction ? '!' : hasCovered ? '↓' : 0;
+        return (
+          <Tooltip title={hasAction ? 'Needs restocking' : hasCovered ? 'Low stock covered by pending PO' : undefined}>
+            <Badge count={badge} size="small" offset={[4, 0]}
+              style={{ backgroundColor: hasAction ? '#ff4d4f' : '#fa8c16' }}>
+              <span style={{ color, fontWeight: 600 }}>{total}</span>
+            </Badge>
+          </Tooltip>
+        );
       },
     },
     {
