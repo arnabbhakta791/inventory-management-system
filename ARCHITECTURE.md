@@ -8,6 +8,24 @@
 
 Every document in every collection carries a `tenantId` field (a MongoDB `ObjectId`). A single Express middleware — `auth.js` — decodes the JWT, reads `tenantId` from the payload, and attaches it to `req.tenantId` as a real `ObjectId`. Every controller then scopes all queries with `{ tenantId: req.tenantId }`.
 
+### Request isolation flow
+
+```mermaid
+flowchart LR
+    A([HTTP Request]) --> B[auth.js\nmiddleware]
+    B --> C{JWT\nvalid?}
+    C -- No --> D([401 Unauthorized])
+    C -- Yes --> E[attach\nreq.tenantId]
+    E --> F[rbac.js\nmiddleware]
+    F --> G{Role\nsufficient?}
+    G -- No --> H([403 Forbidden])
+    G -- Yes --> I[Controller]
+    I --> J["query({ tenantId, ... })"]
+    J --> K[(MongoDB)]
+```
+
+The tenantId is never passed by the client — it is always read from the verified JWT. A controller cannot accidentally query another tenant's data because the filter is injected before the controller runs.
+
 ### Why not database-per-tenant or collection-per-tenant?
 
 | Approach | Why rejected |
@@ -23,6 +41,22 @@ Putting the tenantId filter in a central middleware means it is impossible to fo
 ---
 
 ## 2. Data Modeling Decisions
+
+### Document relationships
+
+```mermaid
+erDiagram
+    TENANT ||--o{ USER : "has"
+    TENANT ||--o{ PRODUCT : "owns"
+    TENANT ||--o{ SUPPLIER : "owns"
+    TENANT ||--o{ PURCHASE_ORDER : "owns"
+    TENANT ||--o{ ORDER : "owns"
+    TENANT ||--o{ STOCK_MOVEMENT : "owns"
+    SUPPLIER ||--o{ PURCHASE_ORDER : "supplies"
+    PRODUCT ||--o{ STOCK_MOVEMENT : "logged in"
+    PRODUCT }o--o{ PURCHASE_ORDER : "line items"
+    PRODUCT }o--o{ ORDER : "line items"
+```
 
 ### Product variants — embedded array, not a separate collection
 
@@ -65,24 +99,19 @@ Request A: writes stock = 0
 Request B: writes stock = -1  ← oversold
 ```
 
-### Why document-level atomic operations (not application-level locking)
+### Atomic guard — single item
 
-MongoDB guarantees that a single document write is atomic. The solution is to move the check and the update into one atomic operation using `findOneAndUpdate` with a filter that acts as the guard:
-
-```js
-const updated = await Product.findOneAndUpdate(
-  {
-    tenantId,
-    'variants.sku': sku,
-    'variants': { $elemMatch: { sku, stock: { $gte: quantity } } }
-  },
-  { $inc: { 'variants.$.stock': -quantity } },
-  { new: true }
-);
-if (!updated) throw new InsufficientStockError();
+```mermaid
+flowchart TD
+    A([Order request]) --> B["findOneAndUpdate\n{ $elemMatch: { sku, stock ≥ qty } }\n{ $inc: stock -qty }"]
+    B --> C{Document\nreturned?}
+    C -- Yes\nstock was sufficient --> D[Stock decremented\natomically in MongoDB]
+    C -- No\nstock insufficient or\nwrong tenant/sku --> E([409 Insufficient Stock])
+    D --> F[Append StockMovement\naudit log entry]
+    F --> G([201 Order created])
 ```
 
-If stock is insufficient, `updated` is `null` — the write never happens. Because the check and decrement are a single atomic document operation, no two requests can both pass the guard for the same unit.
+Because the filter and the update are a single MongoDB operation, no two concurrent requests can both pass the guard for the same unit. If stock is 1 and two requests arrive simultaneously, exactly one gets the document back and one gets `null`.
 
 **Why not optimistic locking (version field + retry)?** Optimistic locking requires a retry loop, which under high contention means many failed attempts before one succeeds — wasteful for a stock system where the correct answer is simply "sold out." The atomic `$elemMatch` guard gives an immediate, correct result in one round trip.
 
@@ -90,21 +119,61 @@ If stock is insufficient, `updated` is `null` — the write never happens. Becau
 
 ### Multi-item orders — manual rollback pattern
 
-When an order has multiple line items, each item is deducted atomically one by one. If item N fails (out of stock), all previously deducted items (0 to N-1) are re-incremented in a cleanup loop:
+```mermaid
+flowchart TD
+    A([Order: items 1..N]) --> B[Deduct item 1\natomically]
+    B --> C{OK?}
+    C -- Yes --> D[Deduct item 2\natomically]
+    D --> E{OK?}
+    E -- Yes --> F[... repeat for\nall items]
+    F --> G([Save order\n201 Created])
+    C -- No --> H([Re-increment nothing\n409 — item 1 failed])
+    E -- No --> I[Re-increment item 1]
+    I --> J([409 — item 2 failed])
 
-```js
-const deducted = [];
-for (const item of items) {
-  const ok = await atomicDeduct(item);
-  if (!ok) {
-    await rollbackAll(deducted);   // re-increment each
-    throw new InsufficientStockError(item);
-  }
-  deducted.push(item);
-}
+    style H fill:#fee2e2
+    style I fill:#fef3c7
+    style J fill:#fee2e2
+    style G fill:#dcfce7
 ```
 
 **Why not a MongoDB transaction?** Atlas M0 (free tier) does not support multi-document ACID transactions. The manual rollback pattern is the correct substitute: it is explicit, visible in the code, and handles the failure case correctly. The trade-off is that a crash between deduction and rollback could leave stock in a temporarily inconsistent state — accepted as a known limitation of the free-tier constraint.
+
+### Purchase Order state machine
+
+```mermaid
+stateDiagram-v2
+    [*] --> draft : PO created
+    draft --> sent : Manager sends to supplier
+    sent --> confirmed : Supplier confirms
+    confirmed --> partially_received : Some items received
+    confirmed --> received : All items received at once
+    partially_received --> received : Remaining items received
+    draft --> cancelled
+    sent --> cancelled
+    confirmed --> cancelled
+
+    note right of received : Stock incremented\nStockMovement logged\nper item received
+```
+
+### Sales Order state machine
+
+```mermaid
+stateDiagram-v2
+    [*] --> pending : Created\nstock deducted atomically
+    pending --> confirmed : Manager confirms
+    confirmed --> shipped : Manager ships
+    shipped --> partially_fulfilled : Partial fulfillment recorded
+    shipped --> delivered : Full fulfillment recorded
+    partially_fulfilled --> delivered : Remaining fulfilled
+    pending --> cancelled : All stock released
+    confirmed --> cancelled : All stock released
+    shipped --> cancelled : Unfulfilled stock released
+    partially_fulfilled --> cancelled : Unfulfilled stock released
+
+    note right of pending : Stock already deducted\nat order creation
+    note right of cancelled : Stock re-incremented\nfor unfulfilled qty
+```
 
 ---
 
@@ -144,9 +213,19 @@ Fetching a product list with stock levels requires no join — the variant stock
 
 **4. Smart low-stock alert — two-query design**
 
-The alert endpoint runs two targeted queries rather than a full collection scan:
-1. Find all variants where `stock < lowStockThreshold` (index scan on Product)
-2. For each alert, sum pending PO quantities for that exact `productId + sku` (index scan on PurchaseOrder)
+```mermaid
+flowchart TD
+    A([For each variant]) --> B{stock <\nlowStockThreshold?}
+    B -- No --> C([No alert])
+    B -- Yes --> D["Sum qty in POs with\nstatus: sent or confirmed\nfor this productId + sku"]
+    D --> E{stock + pendingPOQty\n≥ threshold?}
+    E -- Yes --> F([No alert\nPO will cover it])
+    E -- No --> G([ALERT\ngenuinely low stock])
+
+    style C fill:#dcfce7
+    style F fill:#fef9c3
+    style G fill:#fee2e2
+```
 
 This is O(alerts × POs) rather than O(all products × all POs), which stays fast even with large catalogues because the number of low-stock variants is typically small.
 
