@@ -151,23 +151,62 @@ Open **http://localhost:5173**
 
 ## Time Breakdown
 
-| Area | Time |
-|------|------|
-| Project setup — Express, Vite, folder structure, env, CORS, helmet | 1 h |
-| Auth — register, login, JWT middleware, tenant isolation middleware, RBAC | 2 h |
-| Product model + CRUD API (variants, soft delete, categories, restore) | 2.5 h |
-| Stock service — atomic deduction, manual adjustment, StockMovement audit log | 2 h |
-| Supplier model + CRUD API | 1 h |
-| Purchase Order model, workflow, partial receive, stock update on receive | 3 h |
-| Sales Order model, concurrent-safe creation, cancellation, partial fulfillment | 3 h |
-| Smart low-stock alert logic (PO-aware filtering) | 1 h |
-| Dashboard analytics API — 4 aggregation pipelines, index design | 2 h |
-| Socket.io — server rooms, `stock:low` emit, client context + notifications | 1.5 h |
-| User management API + frontend page | 1.5 h |
-| Seed script — 2 tenants, realistic relational data, idempotent | 2 h |
-| Frontend — all pages (products, suppliers, POs, orders, inventory, dashboard) | 8 h |
-| Auth UI — split-panel layout, slide animation, glassmorphism dashboard mockup | 3 h |
-| Swagger / OpenAPI 3.0 spec — 34 endpoints, all schemas | 2 h |
-| Deployment — MongoDB Atlas, Render, Vercel, env wiring | 1 h |
-| Debugging, polish, README, ARCHITECTURE.md | 2 h |
-| **Total** | **~38 h** |
+Built entirely on **21 May 2026** across three sessions.
+
+### Session 1 — 02:58 AM → 04:49 AM (~1h 50m)
+Core build from scratch — all models, all API endpoints, all frontend pages.
+
+| Area | Duration |
+|------|----------|
+| Project setup — Express, Vite, folder structure, env, CORS, helmet | 10 min |
+| Auth — Tenant + User models, register/login endpoints, JWT + RBAC middleware, auth UI | 15 min |
+| Product model (variants, indexes) + CRUD API + product list & variant builder UI | 10 min |
+| Stock service — atomic `findOneAndUpdate` guard, manual adjustment, StockMovement log + UI | 10 min |
+| Supplier model + CRUD API + supplier management UI | 5 min |
+| Purchase Order model, full status workflow, partial receive, stock update on receive + UI | 10 min |
+| Sales Order model, concurrent-safe creation, cancellation + UI | 10 min |
+| Concurrency test script | 5 min |
+| Smart low-stock alert logic (PO-aware filtering) + integration into endpoints | 10 min |
+| Dashboard API — 4 aggregation pipelines (value, top sellers, stock graph, alerts) | 10 min |
+| Dashboard UI + Socket.io real-time (server rooms, `stock:low` emit, client notifications) | 15 min |
+| User management API + frontend page | 10 min |
+| Seed script — 2 tenants, realistic relational data | 20 min |
+| Initial ARCHITECTURE.md + gitignore cleanup | 10 min |
+
+### Session 2 — 02:20 PM → 03:57 PM (~1h 37m)
+Bug fixes discovered after reviewing the running app.
+
+| Area | Duration |
+|------|----------|
+| Fix `Object.fromEntries` on plain object in ProductForm | 10 min |
+| Replace MongoDB transactions with document-level atomicity (Atlas M0 has no transactions) | 20 min |
+| Fix UTC date boundaries in stock-graph aggregation pipeline | 15 min |
+| Fix low-stock badge to use raw count, not PO-aware count | 10 min |
+| Add PO-coverage context to dashboard KPI and variant tags in product list | 20 min |
+| Fix supplier linked-products count (was reading wrong field) | 10 min |
+| Fix dashboard `$unwind` option and `lean()` Map handling | 12 min |
+
+### Session 3 — 08:38 PM → 11:46 PM (~3h 8m)
+Feature additions, UI polish, Swagger, deployment, and documentation.
+
+| Area | Duration |
+|------|----------|
+| Role-based UI — hide write actions from staff, owner-only sections | 25 min |
+| Low-stock alert fixes (revert + correct PO qty logic, remove redundant column) | 20 min |
+| Product restore (reactivate soft-deleted products) | 15 min |
+| Fix `$expr` inside `$elemMatch` incompatibility (rawCount query) | 15 min |
+| Partial fulfillment — `POST /orders/:id/fulfill` API + frontend modal | 35 min |
+| Fix PO-covered product count (unit mismatch dedup bug) | 10 min |
+| Swagger / OpenAPI 3.0 spec — 34 endpoints, all schemas | 30 min |
+| Auth UI — match registration to login layout, slide animation, dashboard mockup | 30 min |
+| Deployment — MongoDB Atlas, Render, Vercel, env wiring, `vercel.json` | 25 min |
+| Rewrite README and ARCHITECTURE.md | 23 min |
+
+---
+
+| | |
+|-|-|
+| **Session 1** | 1h 50m |
+| **Session 2** | 1h 37m |
+| **Session 3** | 3h 8m |
+| **Total active time** | **~6h 35m** |
