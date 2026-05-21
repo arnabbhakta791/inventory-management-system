@@ -2,6 +2,8 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
+const swaggerUi = require('swagger-ui-express');
+const swaggerDefinition = require('./src/config/swagger');
 const { errorHandler, notFound } = require('./src/middleware/errorHandler');
 
 const authRoutes = require('./src/routes/auth');
@@ -14,6 +16,16 @@ const stockMovementRoutes = require('./src/routes/stockMovements');
 const dashboardRoutes = require('./src/routes/dashboard');
 
 const app = express();
+
+// Swagger UI — mounted BEFORE helmet so CSP doesn't block its assets
+app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerDefinition, {
+  customSiteTitle: 'Inventory API Docs',
+  swaggerOptions: {
+    persistAuthorization: true,   // keeps token across page refreshes
+    filter: true,                  // enables the tag filter bar
+    displayRequestDuration: true,
+  },
+}));
 
 // Security & logging
 app.use(helmet());
