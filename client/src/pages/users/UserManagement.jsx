@@ -10,8 +10,10 @@ import {
   CheckCircleOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
+import { Navigate } from 'react-router-dom';
 import api from '../../api/axios';
 import { useAuth } from '../../hooks/useAuth';
+import { useRole } from '../../hooks/useRole';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -35,6 +37,10 @@ const RoleTag = ({ role }) => {
 // ─────────────────────────────────────────────────────────────────
 const UserManagement = () => {
   const { user: me } = useAuth();
+  const { isOwner, isStaff } = useRole();
+
+  // Staff have no business here — RoleRoute in App.jsx also blocks direct URL access
+  if (isStaff) return <Navigate to="/" replace />;
 
   const [users,       setUsers]       = useState([]);
   const [loading,     setLoading]     = useState(true);
@@ -109,7 +115,7 @@ const UserManagement = () => {
     }
   };
 
-  const isOwner = me?.role === 'owner';
+  // isOwner already comes from useRole above
 
   // ── Stats ────────────────────────────────────────────────────
   const activeCount  = users.filter((u) => u.isActive).length;

@@ -11,6 +11,7 @@ import {
 import { useNavigate, useParams } from 'react-router-dom';
 import dayjs from 'dayjs';
 import api from '../../api/axios';
+import { useRole } from '../../hooks/useRole';
 
 const { Title, Text } = Typography;
 
@@ -27,6 +28,7 @@ const STATUS_CONFIG = {
 const PODetail = () => {
   const { id }   = useParams();
   const navigate = useNavigate();
+  const { isManagerOrAbove } = useRole();
   const [po, setPO]                     = useState(null);
   const [loading, setLoading]           = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
@@ -193,18 +195,21 @@ const PODetail = () => {
             <Tag color={cfg.color} style={{ fontSize: 13 }}>{cfg.label}</Tag>
           </Space>
         </Col>
-        <Col>
-          <Space>
-            {canSend     && <Button type="primary"  icon={<SendOutlined />}    loading={actionLoading} onClick={() => handleStatusChange('sent')}>Mark Sent</Button>}
-            {canConfirm  && <Button type="primary"  icon={<CheckOutlined />}   loading={actionLoading} onClick={() => handleStatusChange('confirmed')}>Confirm PO</Button>}
-            {canReceive  && <Button type="primary"  icon={<InboxOutlined />}   loading={actionLoading} onClick={() => setReceiveModal(true)}>Receive Items</Button>}
-            {canCancel   && (
-              <Popconfirm title="Cancel this purchase order?" onConfirm={handleCancel} okText="Yes" cancelText="No">
-                <Button danger icon={<CloseOutlined />} loading={actionLoading}>Cancel PO</Button>
-              </Popconfirm>
-            )}
-          </Space>
-        </Col>
+        {/* Action buttons — manager / owner only */}
+        {isManagerOrAbove && (
+          <Col>
+            <Space>
+              {canSend     && <Button type="primary"  icon={<SendOutlined />}    loading={actionLoading} onClick={() => handleStatusChange('sent')}>Mark Sent</Button>}
+              {canConfirm  && <Button type="primary"  icon={<CheckOutlined />}   loading={actionLoading} onClick={() => handleStatusChange('confirmed')}>Confirm PO</Button>}
+              {canReceive  && <Button type="primary"  icon={<InboxOutlined />}   loading={actionLoading} onClick={() => setReceiveModal(true)}>Receive Items</Button>}
+              {canCancel   && (
+                <Popconfirm title="Cancel this purchase order?" onConfirm={handleCancel} okText="Yes" cancelText="No">
+                  <Button danger icon={<CloseOutlined />} loading={actionLoading}>Cancel PO</Button>
+                </Popconfirm>
+              )}
+            </Space>
+          </Col>
+        )}
       </Row>
 
       {/* Status stepper */}

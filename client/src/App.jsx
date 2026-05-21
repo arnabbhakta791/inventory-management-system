@@ -4,6 +4,7 @@ import { Spin } from 'antd';
 import { useAuth } from './hooks/useAuth';
 import AppLayout from './components/Layout/AppLayout';
 import PrivateRoute from './components/PrivateRoute';
+import RoleRoute from './components/RoleRoute';
 
 // Auth pages
 import Login from './pages/auth/Login';
@@ -46,19 +47,19 @@ function App() {
         <Route element={<PrivateRoute><AppLayout /></PrivateRoute>}>
           <Route path="/" element={<Dashboard />} />
           <Route path="/products" element={<ProductList />} />
-          <Route path="/products/new" element={<ProductForm />} />
-          <Route path="/products/:id/edit" element={<ProductForm />} />
+          <Route path="/products/new"      element={<RoleRoute minRole="manager"><ProductForm /></RoleRoute>} />
+          <Route path="/products/:id/edit" element={<RoleRoute minRole="manager"><ProductForm /></RoleRoute>} />
           <Route path="/suppliers" element={<SupplierList />} />
-          <Route path="/suppliers/new" element={<SupplierForm />} />
-          <Route path="/suppliers/:id/edit" element={<SupplierForm />} />
+          <Route path="/suppliers/new"      element={<RoleRoute minRole="manager"><SupplierForm /></RoleRoute>} />
+          <Route path="/suppliers/:id/edit" element={<RoleRoute minRole="manager"><SupplierForm /></RoleRoute>} />
           <Route path="/purchase-orders" element={<POList />} />
-          <Route path="/purchase-orders/new" element={<POForm />} />
+          <Route path="/purchase-orders/new" element={<RoleRoute minRole="manager"><POForm /></RoleRoute>} />
           <Route path="/purchase-orders/:id" element={<PODetail />} />
           <Route path="/orders" element={<OrderList />} />
           <Route path="/orders/new" element={<OrderForm />} />
           <Route path="/orders/:id" element={<OrderDetail />} />
           <Route path="/inventory" element={<StockMovements />} />
-          <Route path="/users" element={<UserManagement />} />
+          <Route path="/users" element={<RoleRoute minRole="manager"><UserManagement /></RoleRoute>} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />

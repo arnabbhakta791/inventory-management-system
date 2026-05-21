@@ -11,6 +11,7 @@ import {
 import { useNavigate, useParams } from 'react-router-dom';
 import dayjs from 'dayjs';
 import api from '../../api/axios';
+import { useRole } from '../../hooks/useRole';
 
 const { Title, Text } = Typography;
 
@@ -27,6 +28,7 @@ const STATUS_CONFIG  = {
 const OrderDetail = () => {
   const { id }   = useParams();
   const navigate = useNavigate();
+  const { isManagerOrAbove } = useRole();
   const [order, setOrder]                 = useState(null);
   const [loading, setLoading]             = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
@@ -97,41 +99,44 @@ const OrderDetail = () => {
             <Tag color={cfg.color} style={{ fontSize: 13 }}>{cfg.label}</Tag>
           </Space>
         </Col>
-        <Col>
-          <Space>
-            {canConfirm && (
-              <Button type="primary" icon={<CheckOutlined />} loading={actionLoading}
-                onClick={() => handleStatusChange('confirmed')}>
-                Confirm
-              </Button>
-            )}
-            {canShip && (
-              <Button type="primary" icon={<CarOutlined />} loading={actionLoading}
-                onClick={() => handleStatusChange('shipped')}>
-                Mark Shipped
-              </Button>
-            )}
-            {canDeliver && (
-              <Button type="primary" icon={<TrophyOutlined />} loading={actionLoading}
-                onClick={() => handleStatusChange('delivered')}>
-                Mark Delivered
-              </Button>
-            )}
-            {canCancel && (
-              <Popconfirm
-                title="Cancel this order? Stock will be released back."
-                onConfirm={() => handleStatusChange('cancelled')}
-                okText="Yes, Cancel"
-                cancelText="No"
-                okButtonProps={{ danger: true }}
-              >
-                <Button danger icon={<CloseOutlined />} loading={actionLoading}>
-                  Cancel Order
+        {/* Status action buttons — manager / owner only */}
+        {isManagerOrAbove && (
+          <Col>
+            <Space>
+              {canConfirm && (
+                <Button type="primary" icon={<CheckOutlined />} loading={actionLoading}
+                  onClick={() => handleStatusChange('confirmed')}>
+                  Confirm
                 </Button>
-              </Popconfirm>
-            )}
-          </Space>
-        </Col>
+              )}
+              {canShip && (
+                <Button type="primary" icon={<CarOutlined />} loading={actionLoading}
+                  onClick={() => handleStatusChange('shipped')}>
+                  Mark Shipped
+                </Button>
+              )}
+              {canDeliver && (
+                <Button type="primary" icon={<TrophyOutlined />} loading={actionLoading}
+                  onClick={() => handleStatusChange('delivered')}>
+                  Mark Delivered
+                </Button>
+              )}
+              {canCancel && (
+                <Popconfirm
+                  title="Cancel this order? Stock will be released back."
+                  onConfirm={() => handleStatusChange('cancelled')}
+                  okText="Yes, Cancel"
+                  cancelText="No"
+                  okButtonProps={{ danger: true }}
+                >
+                  <Button danger icon={<CloseOutlined />} loading={actionLoading}>
+                    Cancel Order
+                  </Button>
+                </Popconfirm>
+              )}
+            </Space>
+          </Col>
+        )}
       </Row>
 
       {/* Progress stepper */}

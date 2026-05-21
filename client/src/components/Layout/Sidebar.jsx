@@ -6,23 +6,28 @@ import {
   ShoppingCartOutlined, InboxOutlined, BarChartOutlined,
   UserOutlined,
 } from '@ant-design/icons';
+import { useRole } from '../../hooks/useRole';
 
 const { Sider } = Layout;
 
-const menuItems = [
-  { key: '/',                icon: <DashboardOutlined />,     label: 'Dashboard'       },
-  { key: '/products',        icon: <AppstoreOutlined />,      label: 'Products'        },
-  { key: '/inventory',       icon: <BarChartOutlined />,      label: 'Inventory'       },
-  { key: '/suppliers',       icon: <TeamOutlined />,          label: 'Suppliers'       },
-  { key: '/purchase-orders', icon: <InboxOutlined />,         label: 'Purchase Orders' },
-  { key: '/orders',          icon: <ShoppingCartOutlined />,  label: 'Sales Orders'    },
-  { key: '/users',           icon: <UserOutlined />,          label: 'Users'           },
+const ALL_MENU_ITEMS = [
+  { key: '/',                icon: <DashboardOutlined />,     label: 'Dashboard',       minRole: 'staff'   },
+  { key: '/products',        icon: <AppstoreOutlined />,      label: 'Products',        minRole: 'staff'   },
+  { key: '/inventory',       icon: <BarChartOutlined />,      label: 'Inventory',       minRole: 'staff'   },
+  { key: '/suppliers',       icon: <TeamOutlined />,          label: 'Suppliers',       minRole: 'staff'   },
+  { key: '/purchase-orders', icon: <InboxOutlined />,         label: 'Purchase Orders', minRole: 'staff'   },
+  { key: '/orders',          icon: <ShoppingCartOutlined />,  label: 'Sales Orders',    minRole: 'staff'   },
+  { key: '/users',           icon: <UserOutlined />,          label: 'Users',           minRole: 'manager' },
 ];
 
 // ── Shared sidebar content (used in both Sider and mobile Drawer)
 export const SidebarContent = ({ collapsed = false, onItemClick }) => {
-  const navigate  = useNavigate();
+  const navigate     = useNavigate();
   const { pathname } = useLocation();
+  const { can }      = useRole();
+
+  // Filter menu items the current role is allowed to see
+  const menuItems = ALL_MENU_ITEMS.filter((item) => can(item.minRole));
 
   const handleClick = ({ key }) => {
     navigate(key);

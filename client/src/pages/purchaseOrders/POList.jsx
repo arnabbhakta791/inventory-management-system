@@ -11,6 +11,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import api from '../../api/axios';
+import { useRole } from '../../hooks/useRole';
 
 const { Title } = Typography;
 const { Option } = Select;
@@ -26,6 +27,7 @@ const STATUS_CONFIG = {
 
 const POList = () => {
   const navigate = useNavigate();
+  const { isManagerOrAbove } = useRole();
   const [orders, setOrders]       = useState([]);
   const [loading, setLoading]     = useState(false);
   const [statusFilter, setStatus] = useState('');
@@ -141,9 +143,11 @@ const POList = () => {
         <Col>
           <Space>
             <Button icon={<ReloadOutlined />} onClick={() => fetchOrders(1)}>Refresh</Button>
-            <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/purchase-orders/new')}>
-              New PO
-            </Button>
+            {isManagerOrAbove && (
+              <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/purchase-orders/new')}>
+                New PO
+              </Button>
+            )}
           </Space>
         </Col>
       </Row>

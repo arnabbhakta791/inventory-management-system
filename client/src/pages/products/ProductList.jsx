@@ -9,6 +9,7 @@ import {
 } from '@ant-design/icons';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../../api/axios';
+import { useRole } from '../../hooks/useRole';
 
 const { Title } = Typography;
 const { Option } = Select;
@@ -16,6 +17,7 @@ const { Option } = Select;
 const ProductList = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  const { isManagerOrAbove } = useRole();
 
   // Pre-fill supplier filter from URL (e.g. navigated from Suppliers page)
   const urlSupplierId   = searchParams.get('supplierId')   || '';
@@ -156,7 +158,8 @@ const ProductList = () => {
       render: (_, record) => record.supplierId?.name || <span style={{ color: '#ccc' }}>—</span>,
     },
     { title: 'Status', dataIndex: 'isActive', key: 'isActive', render: (v) => <Tag color={v ? 'green' : 'red'}>{v ? 'Active' : 'Inactive'}</Tag> },
-    {
+    // Actions column only visible to manager / owner
+    ...(isManagerOrAbove ? [{
       title: 'Actions',
       key: 'actions',
       render: (_, record) => (
@@ -167,7 +170,7 @@ const ProductList = () => {
           </Popconfirm>
         </Space>
       ),
-    },
+    }] : []),
   ];
 
   const clearSupplierFilter = () => {
@@ -221,7 +224,9 @@ const ProductList = () => {
               </Tooltip>
             )}
             <Button icon={<ReloadOutlined />} onClick={() => fetchProducts(1)}>Refresh</Button>
-            <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/products/new')}>Add Product</Button>
+            {isManagerOrAbove && (
+              <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/products/new')}>Add Product</Button>
+            )}
           </Space>
         </Col>
       </Row>

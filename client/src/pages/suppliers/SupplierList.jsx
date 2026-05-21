@@ -10,11 +10,13 @@ import {
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import api from '../../api/axios';
+import { useRole } from '../../hooks/useRole';
 
 const { Title } = Typography;
 
 const SupplierList = () => {
   const navigate = useNavigate();
+  const { isManagerOrAbove } = useRole();
   const [suppliers, setSuppliers]   = useState([]);
   const [loading, setLoading]       = useState(false);
   const [search, setSearch]         = useState('');
@@ -119,7 +121,8 @@ const SupplierList = () => {
       key: 'status',
       render: (v) => <Tag color={v ? 'green' : 'red'}>{v ? 'Active' : 'Inactive'}</Tag>,
     },
-    {
+    // Actions column only visible to manager / owner
+    ...(isManagerOrAbove ? [{
       title: 'Actions',
       key: 'actions',
       render: (_, record) => (
@@ -143,7 +146,7 @@ const SupplierList = () => {
           </Popconfirm>
         </Space>
       ),
-    },
+    }] : []),
   ];
 
   return (
@@ -153,13 +156,15 @@ const SupplierList = () => {
         <Col>
           <Space>
             <Button icon={<ReloadOutlined />} onClick={() => fetchSuppliers(1)}>Refresh</Button>
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={() => navigate('/suppliers/new')}
-            >
-              Add Supplier
-            </Button>
+            {isManagerOrAbove && (
+              <Button
+                type="primary"
+                icon={<PlusOutlined />}
+                onClick={() => navigate('/suppliers/new')}
+              >
+                Add Supplier
+              </Button>
+            )}
           </Space>
         </Col>
       </Row>
