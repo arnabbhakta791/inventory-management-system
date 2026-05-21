@@ -168,3 +168,20 @@ html, body {
   /* Auth pages: show brand panel on desktop */
   #auth-brand-panel { display: flex !important; }
 }
+
+/* Auth page — mockup animations */
+@keyframes auth-float {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-8px); }
+}
+@keyframes auth-float-slow {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-5px); }
+}
+@keyframes auth-pulse-dot {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.3; }
+}
+.auth-float       { animation: auth-float      3.5s ease-in-out infinite; }
+.auth-float-slow  { animation: auth-float-slow 4.5s ease-in-out infinite 0.8s; }
+.auth-pulse-dot   { animation: auth-pulse-dot  1.4s ease-in-out infinite; }
