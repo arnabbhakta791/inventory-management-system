@@ -11,17 +11,34 @@ Every document in every collection carries a `tenantId` field (a MongoDB `Object
 ### Request isolation flow
 
 ```mermaid
-flowchart LR
-    A([HTTP Request]) --> B[auth.js\nmiddleware]
-    B --> C{JWT\nvalid?}
-    C -- No --> D([401 Unauthorized])
-    C -- Yes --> E[attach\nreq.tenantId]
-    E --> F[rbac.js\nmiddleware]
-    F --> G{Role\nsufficient?}
-    G -- No --> H([403 Forbidden])
-    G -- Yes --> I[Controller]
-    I --> J["query({ tenantId, ... })"]
-    J --> K[(MongoDB)]
+flowchart TD
+    Start(["User makes API request with Bearer token"])
+    Start --> A
+
+    A["1. auth.js middleware
+    - Read Authorization header
+    - Verify JWT signature and expiry
+    - Extract tenantId, userId, role"]
+
+    A --> B{JWT valid?}
+    B -- No --> Err1(["401 Unauthorized"])
+    B -- Yes --> C
+
+    C["2. Inject into request object
+    - req.tenantId = ObjectId from token
+    - req.userId, req.role attached
+    - Client cannot supply or forge tenantId"]
+
+    C --> D{Role sufficient\nfor this route?}
+    D -- No --> Err2(["403 Forbidden"])
+    D -- Yes --> E
+
+    E["3. Controller executes query
+    - Every db call includes tenantId filter
+    - { tenantId: req.tenantId, ...rest }
+    - Cross-tenant data physically unreachable"]
+
+    E --> F[(MongoDB — returns only\nthis tenant's documents)]
 ```
 
 The tenantId is never passed by the client — it is always read from the verified JWT. A controller cannot accidentally query another tenant's data because the filter is injected before the controller runs.
@@ -103,12 +120,36 @@ Request B: writes stock = -1  ← oversold
 
 ```mermaid
 flowchart TD
-    A([Order request]) --> B["findOneAndUpdate\n{ $elemMatch: { sku, stock ≥ qty } }\n{ $inc: stock -qty }"]
-    B --> C{Document\nreturned?}
-    C -- Yes\nstock was sufficient --> D[Stock decremented\natomically in MongoDB]
-    C -- No\nstock insufficient or\nwrong tenant/sku --> E([409 Insufficient Stock])
-    D --> F[Append StockMovement\naudit log entry]
-    F --> G([201 Order created])
+    Start(["POST /api/orders — request arrives"])
+    Start --> A
+
+    A["1. Build atomic MongoDB operation
+    - filter: { tenantId, sku, stock ≥ qty }
+    - update: { $inc: variants.$.stock by -qty }
+    - Check and decrement in one round trip"]
+
+    A --> B{findOneAndUpdate\nreturns a document?}
+
+    B -- "No — stock insufficient
+    or wrong tenant / sku" --> Err(["409 Insufficient Stock
+    { sku, available, requested }"])
+
+    B -- "Yes — filter matched,
+    stock was sufficient" --> C
+
+    C["2. Stock decremented atomically
+    - No other request can pass the same
+      guard for this unit simultaneously
+    - Race condition is impossible"]
+
+    C --> D
+
+    D["3. Append to audit log
+    - StockMovement record inserted
+    - previousStock and newStock saved
+    - reference = orderId, type = sale"]
+
+    D --> End(["201 Order created"])
 ```
 
 Because the filter and the update are a single MongoDB operation, no two concurrent requests can both pass the guard for the same unit. If stock is 1 and two requests arrive simultaneously, exactly one gets the document back and one gets `null`.
@@ -121,20 +162,43 @@ Because the filter and the update are a single MongoDB operation, no two concurr
 
 ```mermaid
 flowchart TD
-    A([Order: items 1..N]) --> B[Deduct item 1\natomically]
-    B --> C{OK?}
-    C -- Yes --> D[Deduct item 2\natomically]
-    D --> E{OK?}
-    E -- Yes --> F[... repeat for\nall items]
-    F --> G([Save order\n201 Created])
-    C -- No --> H([Re-increment nothing\n409 — item 1 failed])
-    E -- No --> I[Re-increment item 1]
-    I --> J([409 — item 2 failed])
+    Start(["Order arrives with N line items
+    e.g. 3 SKUs in one order"])
+    Start --> A
 
-    style H fill:#fee2e2
-    style I fill:#fef3c7
-    style J fill:#fee2e2
-    style G fill:#dcfce7
+    A["1. Attempt item 1
+    - atomicDeduct(sku1, qty1)
+    - deducted = []"]
+
+    A --> B{Success?}
+    B -- No --> Err1(["409 — item 1 out of stock
+    Nothing to roll back"])
+
+    B -- Yes --> C
+
+    C["2. Attempt item 2
+    - atomicDeduct(sku2, qty2)
+    - deducted = [item1]"]
+
+    C --> D{Success?}
+    D -- No --> Rollback1
+
+    Rollback1["Rollback item 1
+    - $inc stock +qty1
+    - deducted list cleared"]
+
+    Rollback1 --> Err2(["409 — item 2 out of stock
+    item 1 stock fully restored"])
+
+    D -- Yes --> E
+
+    E["3. Repeat for all remaining items
+    - Each success appended to deducted list
+    - Any failure triggers full rollback
+      of everything in deducted list"]
+
+    E --> End(["All items deducted successfully
+    Save order document → 201 Created"])
 ```
 
 **Why not a MongoDB transaction?** Atlas M0 (free tier) does not support multi-document ACID transactions. The manual rollback pattern is the correct substitute: it is explicit, visible in the code, and handles the failure case correctly. The trade-off is that a crash between deduction and rollback could leave stock in a temporarily inconsistent state — accepted as a known limitation of the free-tier constraint.
@@ -215,16 +279,32 @@ Fetching a product list with stock levels requires no join — the variant stock
 
 ```mermaid
 flowchart TD
-    A([For each variant]) --> B{stock <\nlowStockThreshold?}
-    B -- No --> C([No alert])
-    B -- Yes --> D["Sum qty in POs with\nstatus: sent or confirmed\nfor this productId + sku"]
-    D --> E{stock + pendingPOQty\n≥ threshold?}
-    E -- Yes --> F([No alert\nPO will cover it])
-    E -- No --> G([ALERT\ngenuinely low stock])
+    Start(["Low-stock check triggered
+    on stock change or dashboard load"])
+    Start --> A
 
-    style C fill:#dcfce7
-    style F fill:#fef9c3
-    style G fill:#fee2e2
+    A["1. Query Product collection
+    - filter: { tenantId, variants.stock < threshold }
+    - Uses compound index — no collection scan
+    - Returns only variants that are low"]
+
+    A --> B{Any variants\nbelow threshold?}
+    B -- No --> Z(["No alerts — all stock healthy"])
+    B -- Yes --> C
+
+    C["2. For each low-stock variant
+    - Query PurchaseOrders
+    - status IN sent or confirmed only
+    - Sum pendingQty for this productId + sku"]
+
+    C --> D{stock + pendingQty\n≥ threshold?}
+
+    D -- Yes --> Skip(["Skip — no alert raised
+    Incoming PO will cover the deficit"])
+
+    D -- No --> Alert(["ALERT raised
+    Variant genuinely needs restocking
+    Even pending POs won't cover it"])
 ```
 
 This is O(alerts × POs) rather than O(all products × all POs), which stays fast even with large catalogues because the number of low-stock variants is typically small.
