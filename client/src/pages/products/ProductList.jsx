@@ -5,7 +5,8 @@ import {
 } from 'antd';
 import {
   PlusOutlined, SearchOutlined, EditOutlined,
-  DeleteOutlined, WarningOutlined, ReloadOutlined, ShopOutlined, InboxOutlined,
+  DeleteOutlined, WarningOutlined, ReloadOutlined, ShopOutlined,
+  InboxOutlined, UndoOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../../api/axios';
@@ -83,6 +84,16 @@ const ProductList = () => {
       fetchProducts(pagination.current);
     } catch {
       message.error('Failed to delete product');
+    }
+  };
+
+  const handleRestore = async (id) => {
+    try {
+      await api.patch(`/products/${id}/restore`);
+      message.success('Product restored');
+      fetchProducts(pagination.current);
+    } catch {
+      message.error('Failed to restore product');
     }
   };
 
@@ -164,10 +175,20 @@ const ProductList = () => {
       key: 'actions',
       render: (_, record) => (
         <Space>
-          <Button size="small" icon={<EditOutlined />} onClick={() => navigate(`/products/${record._id}/edit`)}>Edit</Button>
-          <Popconfirm title="Deactivate this product?" onConfirm={() => handleDelete(record._id)} okText="Yes" cancelText="No">
-            <Button size="small" danger icon={<DeleteOutlined />}>Delete</Button>
-          </Popconfirm>
+          {record.isActive ? (
+            <>
+              <Button size="small" icon={<EditOutlined />} onClick={() => navigate(`/products/${record._id}/edit`)}>Edit</Button>
+              <Popconfirm title="Deactivate this product?" onConfirm={() => handleDelete(record._id)} okText="Yes" cancelText="No">
+                <Button size="small" danger icon={<DeleteOutlined />}>Delete</Button>
+              </Popconfirm>
+            </>
+          ) : (
+            <Popconfirm title="Restore this product?" onConfirm={() => handleRestore(record._id)} okText="Restore" cancelText="No">
+              <Button size="small" icon={<UndoOutlined />} style={{ color: '#52c41a', borderColor: '#52c41a' }}>
+                Restore
+              </Button>
+            </Popconfirm>
+          )}
         </Space>
       ),
     }] : []),

@@ -2,7 +2,7 @@ const express = require('express');
 const { body } = require('express-validator');
 const {
   getProducts, getProduct, createProduct, updateProduct,
-  deleteProduct, getLowStock, getCategories, adjustVariantStock,
+  deleteProduct, restoreProduct, getLowStock, getCategories, adjustVariantStock,
 } = require('../controllers/productController');
 const { protect } = require('../middleware/auth');
 const { managerOrAbove } = require('../middleware/rbac');
@@ -32,6 +32,7 @@ router.route('/:id')
   .put(managerOrAbove, updateProduct)
   .delete(managerOrAbove, deleteProduct);
 
+router.patch('/:id/restore',             managerOrAbove, restoreProduct);
 router.patch('/:id/variants/:sku/stock', managerOrAbove, adjustVariantStock);
 
 module.exports = router;

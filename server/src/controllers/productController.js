@@ -118,6 +118,23 @@ const deleteProduct = async (req, res, next) => {
   }
 };
 
+// @desc    Restore (reactivate) a deactivated product
+// @route   PATCH /api/products/:id/restore
+// @access  Private — manager/owner
+const restoreProduct = async (req, res, next) => {
+  try {
+    const product = await Product.findOneAndUpdate(
+      { _id: req.params.id, tenantId: req.tenantId },
+      { isActive: true },
+      { new: true }
+    );
+    if (!product) return res.status(404).json({ success: false, message: 'Product not found' });
+    res.json({ success: true, message: 'Product restored', data: product });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // @desc    Get smart low-stock items (PO-aware)
 // @route   GET /api/products/low-stock
 // @access  Private
@@ -221,6 +238,7 @@ module.exports = {
   createProduct,
   updateProduct,
   deleteProduct,
+  restoreProduct,
   getLowStock,
   getCategories,
   adjustVariantStock,
