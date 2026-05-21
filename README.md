@@ -149,6 +149,34 @@ Open **http://localhost:5173**
 
 ---
 
+## Verifying Real-Time Dashboard & Live Graph
+
+The dashboard updates automatically via Socket.io — no page refresh needed. To see it in action:
+
+### Quick test (two browser tabs)
+
+1. **Tab 1 — Dashboard:** Log in as `owner@techstore.com` and stay on the Dashboard page.
+2. **Tab 2 — Place an order:** Open a second tab, log in with the same (or any TechStore) account, go to **Sales Orders → New Order**, add an item, and click **Place Order**.
+3. **Watch Tab 1:** The moment the order is placed, the Dashboard in Tab 1 will:
+   - Update the **Inventory Value** and **Pending Orders** KPI cards instantly
+   - Refresh the **7-day Stock Movement graph** (the "Stock Out" line rises for today)
+   - Show a **low-stock notification toast** if the ordered item drops below its threshold
+   - Update the **Low Stock Alerts** table (if applicable)
+
+### Other actions that trigger live updates
+
+| Action | Where | Dashboard effect |
+|--------|-------|-----------------|
+| Receive items on a Purchase Order | PO Detail → Receive Items | Stock In line rises; Inventory Value increases; low-stock alert may clear |
+| Manual stock adjustment | Product → Edit → Adjust Stock | Graph and KPI cards update |
+| Cancel an order | Order Detail → Cancel Order | Stock is released; Stock In line rises |
+
+All updates flow through **Socket.io** — the server emits `stock:updated` after every stock change, and the Dashboard listens and re-fetches all widgets silently (you'll see the green "Live" badge next to the last-updated timestamp).
+
+> **Note:** On the production Render free tier, the first request after inactivity wakes the server (~30s). Once awake, Socket.io connects and real-time updates work normally.
+
+---
+
 ## Deployment
 
 | Layer | Platform | Live URL |
