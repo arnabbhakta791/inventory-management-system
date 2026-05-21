@@ -165,6 +165,7 @@ html, body {
 @media (min-width: 769px) {
   .hide-desktop { display: none !important; }
 
-  /* Login page: show brand panel and constrain form width */
-  #login-brand-panel { display: flex !important; }
+  /* Auth pages: show brand panel on desktop */
+  #login-brand-panel,
+  #register-brand-panel { display: flex !important; }
 }
