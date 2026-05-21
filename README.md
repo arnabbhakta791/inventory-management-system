@@ -151,84 +151,26 @@ Open **http://localhost:5173**
 
 ## Deployment
 
-The app is deployed using three free-tier services that require no credit card.
+| Layer | Platform | Live URL |
+|-------|----------|----------|
+| Frontend | Vercel | https://inventory-management-system-one-delta.vercel.app |
+| Backend | Render | https://inventory-api-gf22.onrender.com |
+| Database | MongoDB Atlas M0 | Shared free cluster |
 
-| Layer | Platform | URL |
-|-------|----------|-----|
-| Frontend | [Vercel](https://vercel.com) | https://inventory-management-system-one-delta.vercel.app |
-| Backend | [Render](https://render.com) | https://inventory-api-gf22.onrender.com |
-| Database | [MongoDB Atlas M0](https://mongodb.com/cloud/atlas) | Shared free cluster |
-
-Both Vercel and Render are connected to this GitHub repo and **auto-deploy on every push to `master`**.
-
-> **Render free-tier note:** The backend spins down after 15 minutes of inactivity. The first request after idle takes ~30 seconds to wake up. This is normal behaviour on the free plan.
-
----
-
-### Deploy the Backend (Render)
-
-1. Sign up at [render.com](https://render.com) with GitHub
-2. **New → Web Service** → connect this repo
-3. Set the following:
-
-   | Field | Value |
-   |-------|-------|
-   | Root Directory | `server` |
-   | Runtime | `Node` |
-   | Build Command | `npm install` |
-   | Start Command | `npm start` |
-   | Instance Type | `Free` |
-
-4. Add environment variables:
-
-   | Key | Value |
-   |-----|-------|
-   | `NODE_ENV` | `production` |
-   | `MONGO_URI` | Your MongoDB Atlas connection string |
-   | `JWT_SECRET` | Any long random string (32+ chars) |
-   | `JWT_EXPIRE` | `7d` |
-   | `CLIENT_URL` | Your Vercel frontend URL (add after Step 2 below) |
-
-5. Click **Create Web Service** — Render gives you a URL like `https://your-api.onrender.com`
-
----
-
-### Deploy the Frontend (Vercel)
-
-1. Sign up at [vercel.com](https://vercel.com) with GitHub
-2. **Add New Project** → import this repo
-3. Set the following:
-
-   | Field | Value |
-   |-------|-------|
-   | Root Directory | `client` |
-   | Framework Preset | `Vite` |
-   | Build Command | `npm run build` |
-   | Output Directory | `dist` |
-
-4. Add environment variable:
-
-   | Key | Value |
-   |-----|-------|
-   | `VITE_API_BASE_URL` | `https://your-api.onrender.com/api` |
-
-5. Click **Deploy** — Vercel gives you a URL like `https://your-app.vercel.app`
-6. Go back to Render → update `CLIENT_URL` to this Vercel URL → save (triggers a redeploy)
-
-The `client/vercel.json` file already handles SPA routing — all paths fall through to `index.html` so React Router works on direct URL visits and page refreshes.
-
----
-
-### Seed the Production Database
-
-Once the backend is live, run the seed script locally pointing at your Atlas cluster:
+Both Vercel and Render are connected to this GitHub repository and **auto-deploy on every push to `master`**. Deploying a new feature is just:
 
 ```bash
-# Temporarily set MONGO_URI to your Atlas URI in server/.env
-cd server
-npm run seed
-# Then restore MONGO_URI back to localhost for local dev
+git add .
+git commit -m "feat: your change"
+git push origin master
 ```
+
+- **Vercel** picks up the push, rebuilds the React app, and serves the new version within ~1 minute.
+- **Render** picks up the push, runs `npm install`, restarts the Node server, and is live within ~2 minutes.
+
+No manual steps, no CLI tools, no SSH — the push is the deploy.
+
+> **Render free-tier note:** The backend spins down after 15 minutes of inactivity. The first request after idle takes ~30 seconds to wake up.
 
 ---
 
