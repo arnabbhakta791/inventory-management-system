@@ -1,63 +1,17 @@
 # Multi-Tenant Inventory Management System
 
-A full-stack MERN SaaS application that allows multiple independent businesses (tenants) to manage their inventory, suppliers, purchase orders, and sales — all with strict data isolation.
+A full-stack MERN SaaS application for managing inventory, suppliers, purchase orders, and sales across multiple isolated businesses (tenants).
+
+**Live app:** https://inventory-management-system-one-delta.vercel.app
+**API docs:** https://inventory-api-gf22.onrender.com/api/docs
 
 ---
 
-## Live Demo
-
-| | Link |
-|-|------|
-| **Frontend** | [https://inventory-management-system-one-delta.vercel.app](https://inventory-management-system-one-delta.vercel.app) |
-| **API Docs** | [https://inventory-api-gf22.onrender.com/api/docs](https://inventory-api-gf22.onrender.com/api/docs) |
-
-> **Note:** The backend is hosted on Render's free tier and spins down after 15 minutes of inactivity. The first request after idle may take ~30 seconds to wake up.
-
----
-
-## Deployment
-
-| Layer | Platform | Notes |
-|-------|----------|-------|
-| Frontend | [Vercel](https://vercel.com) | Auto-deploys from `client/` on every push to `master` |
-| Backend | [Render](https://render.com) | Auto-deploys from `server/` on every push to `master` |
-| Database | [MongoDB Atlas M0](https://mongodb.com/cloud/atlas) | Free shared cluster |
-
----
-
-## Tech Stack
-
-| Layer    | Technology                                      |
-|----------|-------------------------------------------------|
-| Frontend | React 18, Vite, React Router, Ant Design 6, Recharts, Socket.io-client |
-| Backend  | Node.js, Express 5, Socket.io                   |
-| Database | MongoDB (Mongoose 9)                            |
-| Auth     | JWT (stateless)                                 |
-
----
-
-## Features
-
-- **Multi-tenancy** — complete data isolation per business via `tenantId` row-level filtering
-- **Product variants** — single product with multiple SKUs (size/colour/storage/etc.)
-- **Concurrency-safe stock** — atomic `findOneAndUpdate` with MongoDB `$elemMatch` guard; no race conditions
-- **Smart low-stock alerts** — only alerts when pending POs won't cover the deficit (no false alarms)
-- **Purchase Order workflow** — draft → sent → confirmed → (partially) received, with per-item receipt tracking
-- **Sales Order workflow** — atomic stock deduction on creation; partial fulfillment tracking; stock released on cancellation
-- **Audit trail** — append-only `StockMovement` log for every stock change
-- **Real-time notifications** — Socket.io pushes `stock:low` events to all users in the tenant room
-- **Dashboard analytics** — inventory value, 7-day movement chart, top-5 sellers, low-stock widget
-- **RBAC** — owner / manager / staff role hierarchy
-- **API documentation** — full OpenAPI 3.0 spec served via Swagger UI at `/api/docs`
-
----
-
-## Getting Started
+## Setup Instructions
 
 ### Prerequisites
-
 - Node.js 18+
-- MongoDB (local or Atlas)
+- MongoDB (local) or a free [MongoDB Atlas](https://mongodb.com/cloud/atlas) M0 cluster
 
 ### 1. Clone & install
 
@@ -65,10 +19,7 @@ A full-stack MERN SaaS application that allows multiple independent businesses (
 git clone https://github.com/arnabbhakta791/inventory-management-system.git
 cd inventory-management-system
 
-# Install server deps
 cd server && npm install
-
-# Install client deps
 cd ../client && npm install
 ```
 
@@ -96,12 +47,12 @@ cd server
 npm run seed
 ```
 
-This creates two isolated demo tenants with products, suppliers, purchase orders, sales orders, and stock movements.
+Creates two fully isolated demo tenants — TechStore and FashionHub — each with products, variants, suppliers, purchase orders, sales orders, and stock movements.
 
 ### 4. Start servers
 
 ```bash
-# Terminal 1 — API server (port 5000)
+# Terminal 1 — API (port 5000)
 cd server && npm run dev
 
 # Terminal 2 — React client (port 5173)
@@ -112,96 +63,111 @@ Open **http://localhost:5173**
 
 ---
 
-## API Documentation
-
-| Environment | URL |
-|-------------|-----|
-| **Production** | [https://inventory-api-gf22.onrender.com/api/docs](https://inventory-api-gf22.onrender.com/api/docs) |
-| **Local** | http://localhost:5000/api/docs |
-
-### How to authenticate in Swagger UI
-
-1. Open the Swagger UI URL above
-2. Use **`POST /api/auth/login`** → click **Try it out** → enter a seed credential → **Execute**
-3. Copy the `token` value from the response body
-4. Click the **Authorize 🔒** button at the top of the page
-5. Paste the token and click **Authorize** — all subsequent requests will include it automatically
-
-> The token persists across page refreshes (`persistAuthorization: true`).
-
-The spec covers all **34 endpoints** with full request/response schemas, role requirements, query parameters, and error response shapes (including the `409` insufficient-stock response with `sku`, `available`, and `requested` fields).
-
----
-
 ## Test Credentials
 
 ### TechStore (Electronics)
 
-| Role    | Email                      | Password    |
-|---------|----------------------------|-------------|
-| Owner   | owner@techstore.com        | password123 |
-| Manager | manager@techstore.com      | password123 |
-| Staff   | staff@techstore.com        | password123 |
+| Role    | Email                   | Password    |
+|---------|-------------------------|-------------|
+| Owner   | owner@techstore.com     | password123 |
+| Manager | manager@techstore.com   | password123 |
+| Staff   | staff@techstore.com     | password123 |
 
 ### FashionHub (Clothing)
 
-| Role    | Email                      | Password    |
-|---------|----------------------------|-------------|
-| Owner   | owner@fashionhub.com       | password123 |
-| Manager | manager@fashionhub.com     | password123 |
-| Staff   | staff@fashionhub.com       | password123 |
+| Role    | Email                   | Password    |
+|---------|-------------------------|-------------|
+| Owner   | owner@fashionhub.com    | password123 |
+| Manager | manager@fashionhub.com  | password123 |
+| Staff   | staff@fashionhub.com    | password123 |
 
-> **Data isolation:** Login as a TechStore user and a FashionHub user simultaneously — each sees only their own data.
-
----
-
-## API Endpoints
-
-> Full interactive documentation with request/response schemas: **[https://inventory-api-gf22.onrender.com/api/docs](https://inventory-api-gf22.onrender.com/api/docs)**
-
-| Method | Route | Role | Description |
-|--------|-------|------|-------------|
-| POST | `/api/auth/register` | public | Create tenant + owner |
-| POST | `/api/auth/login` | public | Returns JWT |
-| GET | `/api/auth/me` | any | Current user + tenant |
-| GET/POST | `/api/users` | owner/manager | List / invite users |
-| PATCH/DELETE | `/api/users/:id` | owner | Change role / deactivate |
-| GET/POST | `/api/products` | any / manager | List / create products |
-| GET/PUT/DELETE | `/api/products/:id` | any / manager | Get / update / soft-delete |
-| PATCH | `/api/products/:id/restore` | manager | Restore a deactivated product |
-| GET | `/api/products/low-stock` | any | Smart PO-aware alert list (`rawCount` + smart `count`) |
-| GET | `/api/products/categories` | any | Distinct category list |
-| PATCH | `/api/products/:id/variants/:sku/stock` | manager | Manual stock adjustment |
-| GET/POST | `/api/suppliers` | any / manager | List / create suppliers |
-| GET/PUT/DELETE | `/api/suppliers/:id` | any / manager | Get / update / delete supplier |
-| GET/POST | `/api/purchase-orders` | any / manager | List / create POs |
-| GET/PUT/DELETE | `/api/purchase-orders/:id` | any / manager | Get / update / cancel PO |
-| PATCH | `/api/purchase-orders/:id/status` | manager | Status transition (draft→sent→confirmed) |
-| POST | `/api/purchase-orders/:id/receive` | manager | Receive goods — partial delivery supported |
-| GET/POST | `/api/orders` | any | List / create orders (atomic stock deduction) |
-| GET | `/api/orders/:id` | any | Get single order |
-| PATCH | `/api/orders/:id/status` | manager | Update order status |
-| POST | `/api/orders/:id/cancel` | manager | Cancel + release unfulfilled stock |
-| POST | `/api/orders/:id/fulfill` | manager | Record fulfillment batch (partial delivery supported) |
-| GET | `/api/stock-movements` | any | Paginated append-only audit log |
-| GET | `/api/stock-movements/product/:id/variant/:sku` | any | Variant-level movement history |
-| GET | `/api/dashboard/stats` | any | KPI summary (inventory value, revenue, counts) |
-| GET | `/api/dashboard/low-stock` | any | Smart low-stock alert list |
-| GET | `/api/dashboard/top-sellers` | any | Top 5 selling variants — last 30 days |
-| GET | `/api/dashboard/stock-graph` | any | Daily stock in/out — last 7 days |
-| GET | `/api/health` | public | Server health check |
+> Open two browser tabs and log in as a TechStore user and a FashionHub user simultaneously — each sees only their own data, confirming tenant isolation.
 
 ---
 
-## Concurrency Test
+## Features Implemented
 
-```bash
-cd server
-npm run test:concurrency
-```
+### Core
+- **Multi-tenancy** — complete data isolation per business via `tenantId` on every document; enforced by middleware, not per-controller
+- **RBAC** — owner / manager / staff role hierarchy; role checked centrally via middleware
+- **JWT authentication** — stateless, 7-day expiry, attached to every API request via Axios interceptor
 
-Sets stock to 1 unit, fires 10 simultaneous POST `/api/orders` requests.  
-**Expected:** exactly 1 success (HTTP 201) + 9 conflicts (HTTP 409).  
-Confirms MongoDB atomic `$elemMatch` stock guard works correctly.
+### Inventory
+- **Product variants** — one product with multiple SKUs (size, colour, storage, etc.) stored as an embedded array
+- **Soft delete & restore** — products are deactivated, not permanently deleted
+- **Manual stock adjustment** — managers can correct stock counts with an audit reason
+- **Smart low-stock alerts** — only flags variants where even pending Purchase Orders won't cover the deficit (no false alarms)
 
-See **[ARCHITECTURE.md](./ARCHITECTURE.md)** for detailed design decisions and trade-offs.
+### Purchase Orders
+- **Full PO workflow** — draft → sent → confirmed → received (with partial delivery support)
+- **Per-item receipt tracking** — each line item tracks `receivedQuantity` independently
+- **Stock auto-update on receive** — stock is incremented and a StockMovement is logged per item received
+
+### Sales Orders
+- **Atomic stock deduction** — uses `findOneAndUpdate` with `$elemMatch` guard; concurrent orders cannot oversell
+- **Multi-item rollback** — if any item fails, previously deducted items are re-incremented (manual rollback, Atlas M0 has no transactions)
+- **Partial fulfillment** — `POST /api/orders/:id/fulfill` records dispatch batches per SKU; auto-transitions to `delivered` or `partially_fulfilled`
+- **Cancellation** — releases all unfulfilled stock back to inventory
+
+### Audit & Real-time
+- **Append-only stock movement log** — every stock change (purchase, sale, return, adjustment) is recorded with before/after quantities
+- **Real-time notifications** — Socket.io pushes `stock:low` events to all users in the tenant room the moment stock drops below threshold
+
+### Dashboard
+- **Inventory value** — live total cost value across all active variant stock
+- **Top 5 sellers** — last 30 days, ranked by units sold via aggregation pipeline
+- **7-day stock graph** — daily stock in vs. out using `$dateToString` grouping in UTC
+- **Low-stock widget** — PO-aware; same logic as the smart alert endpoint
+
+### API & Docs
+- **34 REST endpoints** — full OpenAPI 3.0 spec served via Swagger UI at `/api/docs`
+- **Concurrency test script** — `npm run test:concurrency` fires 10 simultaneous orders against 1 unit of stock; expects exactly 1 success and 9 × 409
+
+---
+
+## Assumptions
+
+- **One currency** — all prices are stored as plain numbers with no currency code; assumed single-currency per tenant.
+- **No email delivery** — user invitations and low-stock alerts are in-app only; no SMTP integration.
+- **No product images** — variants are text/attribute based; no file upload infrastructure.
+- **Atlas M0 / no ACID transactions** — multi-item order atomicity is handled via manual rollback rather than a MongoDB session, as Atlas M0 does not support multi-document transactions.
+- **UTC throughout** — all date boundaries in aggregation pipelines use `Date.UTC()` to avoid timezone-offset bugs; client display timezone is left to the browser.
+- **Soft delete only for products** — suppliers, orders, and POs are never deleted; products can be deactivated and restored.
+- **Seed data is idempotent** — running `npm run seed` more than once drops and recreates all seed data cleanly.
+
+---
+
+## Known Limitations
+
+- **Render free-tier cold starts** — the backend spins down after 15 minutes of inactivity; the first request after idle takes ~30 seconds to wake up.
+- **No email verification** — users can register with any email address; there is no verification step.
+- **No refresh tokens** — JWT is stored in `localStorage`; a single 7-day token is issued with no silent refresh mechanism.
+- **No pagination on a few sub-resources** — stock movement history per variant and PO status history are returned in full without pagination.
+- **No image / file uploads** — product and supplier records are text-only.
+- **Socket.io on free Render** — WebSocket connections may be interrupted during cold starts or Render's ~30-second request timeout; the client reconnects automatically but real-time events during that window are lost.
+- **No automated test suite** — the only automated test is the concurrency script (`npm run test:concurrency`); no unit or integration tests exist.
+
+---
+
+## Time Breakdown
+
+| Area | Time |
+|------|------|
+| Project setup — Express, Vite, folder structure, env, CORS, helmet | 1 h |
+| Auth — register, login, JWT middleware, tenant isolation middleware, RBAC | 2 h |
+| Product model + CRUD API (variants, soft delete, categories, restore) | 2.5 h |
+| Stock service — atomic deduction, manual adjustment, StockMovement audit log | 2 h |
+| Supplier model + CRUD API | 1 h |
+| Purchase Order model, workflow, partial receive, stock update on receive | 3 h |
+| Sales Order model, concurrent-safe creation, cancellation, partial fulfillment | 3 h |
+| Smart low-stock alert logic (PO-aware filtering) | 1 h |
+| Dashboard analytics API — 4 aggregation pipelines, index design | 2 h |
+| Socket.io — server rooms, `stock:low` emit, client context + notifications | 1.5 h |
+| User management API + frontend page | 1.5 h |
+| Seed script — 2 tenants, realistic relational data, idempotent | 2 h |
+| Frontend — all pages (products, suppliers, POs, orders, inventory, dashboard) | 8 h |
+| Auth UI — split-panel layout, slide animation, glassmorphism dashboard mockup | 3 h |
+| Swagger / OpenAPI 3.0 spec — 34 endpoints, all schemas | 2 h |
+| Deployment — MongoDB Atlas, Render, Vercel, env wiring | 1 h |
+| Debugging, polish, README, ARCHITECTURE.md | 2 h |
+| **Total** | **~38 h** |
