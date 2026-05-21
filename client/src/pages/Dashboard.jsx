@@ -6,7 +6,7 @@ import {
 import {
   DollarOutlined, WarningOutlined, ShoppingCartOutlined,
   InboxOutlined, ReloadOutlined, FireOutlined,
-  ArrowUpOutlined, ArrowDownOutlined, RiseOutlined,
+  ArrowUpOutlined, RiseOutlined,
 } from '@ant-design/icons';
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -166,15 +166,6 @@ const Dashboard = () => {
           </Text>
         </Space>
       ),
-    },
-    {
-      title: 'Pending PO',
-      dataIndex: 'pendingPOQty',
-      align: 'center',
-      render: (qty) =>
-        qty > 0
-          ? <Tag color="blue" icon={<InboxOutlined />}>{qty} incoming</Tag>
-          : <Text type="secondary">—</Text>,
     },
     {
       title: 'Deficit',
