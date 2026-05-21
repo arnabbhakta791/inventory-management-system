@@ -121,10 +121,26 @@ const deleteProduct = async (req, res, next) => {
 // @desc    Get smart low-stock items (PO-aware)
 // @route   GET /api/products/low-stock
 // @access  Private
+//
+// Returns two counts:
+//   count    — PO-aware smart count (used by dashboard widget)
+//   rawCount — raw products with any variant below threshold (used by
+//              the product-list header badge to match what the table shows)
 const getLowStock = async (req, res, next) => {
   try {
-    const alerts = await getSmartLowStockAlerts(req.tenantId);
-    res.json({ success: true, data: alerts, count: alerts.length });
+    const [alerts, rawCount] = await Promise.all([
+      getSmartLowStockAlerts(req.tenantId),
+      // Count products that have at least one variant where stock < lowStockThreshold.
+      // $expr lets us compare two fields within the same document.
+      Product.countDocuments({
+        tenantId: req.tenantId,
+        isActive: true,
+        variants: {
+          $elemMatch: { $expr: { $lt: ['$stock', '$lowStockThreshold'] } },
+        },
+      }),
+    ]);
+    res.json({ success: true, data: alerts, count: alerts.length, rawCount });
   } catch (error) {
     next(error);
   }

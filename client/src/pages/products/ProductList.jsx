@@ -55,7 +55,10 @@ const ProductList = () => {
         api.get('/products/low-stock'),
       ]);
       setCategories(catRes.data.data);
-      setLowStockCount(lowStockRes.data.count);
+      // Use rawCount (products with any variant below threshold) so the badge
+      // matches the red-tagged rows in the table, which also use the raw check.
+      // The smart PO-aware count lives on the dashboard widget instead.
+      setLowStockCount(lowStockRes.data.rawCount ?? lowStockRes.data.count);
     } catch { /* silent */ }
   }, []);
 
