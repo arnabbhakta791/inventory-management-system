@@ -38,6 +38,7 @@ fully isolated data. All protected endpoints require a **Bearer JWT** token.
     },
   },
   servers: [
+    { url: 'https://inventory-api-gf22.onrender.com', description: 'Production server (Render)' },
     { url: 'http://localhost:5000', description: 'Local development server' },
   ],
   components: {
